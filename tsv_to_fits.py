@@ -3,10 +3,10 @@ import argparse
 import csv
 import numpy as np
 from astropy.io import fits
-import astropy
 
 
 #Fields to be stored in images (all the rest will be stored in a table)
+#Chenge this if you want different fields to be stored in images
 image_fields = ['PZ_full']
 
 
@@ -54,49 +54,39 @@ with open(paths['input']) as f:
             value = floatify(value)
             data[key].append(value)
         if np.mod(count,1e6)==0:
-            print 'Read first ' + '%e' % count +  ' rows'
+            print '----> Read first ' + '%e' % count +  ' rows'
         count = count + 1
+print 'Finished reading data!'
 
 
-#Initialise the hdu list
-#hdu = []
+#Create the first empty image and store it as the first element of hdul
+hdu = fits.PrimaryHDU()
+hdul = fits.HDUList([hdu])
 
-#Create the first empty image, hdu[0]
-#hdu.append(fits.PrimaryHDU())
+#Create the table and append it to hdul
+table_fields = [x for x in data.keys() if x not in image_fields]
+columns = []
+for key in table_fields:
+    if type(data[key][0]) is str:
+        l = str(np.max([len(x) for x in data[key]]))
+        columns.append(fits.Column(name=key,array=data[key],format=l+'A'))
+    if type(data[key][0]) is list:
+        l = str(np.max([len(x) for x in data[key]]))
+        if type(data[key][0][0]) is float:
+            columns.append(fits.Column(name=key,array=data[key],format=l+'E'))
+    if type(data[key][0]) is float:
+        columns.append(fits.Column(name=key,array=data[key],format='E'))
+hdu = fits.BinTableHDU.from_columns(columns, name='Table')
+hdul.append(hdu)
+print 'Created table!'
 
-#Create the table, hdu[1]
-#table_fields = [x for x in data.keys() if x not in image_fields]
-#columns = []
-#for key in table_fields:
-#    if type(data[key][0]) is str:
-#        l = str(np.max([len(x) for x in data[key]]))
-#        columns.append(fits.Column(name=key,array=data[key],format=l+'A'))
-#    if type(data[key][0]) is list:
-#        l = str(np.max([len(x) for x in data[key]]))
-#        if type(data[key][0][0]) is float:
-#            columns.append(fits.Column(name=key,array=data[key],format=l+'E'))
-#    if type(data[key][0]) is float:
-#        columns.append(fits.Column(name=key,array=data[key],format='E'))
+#Create the images and append them to hdul
+for key in image_fields:
+    hdu = fits.ImageHDU(data[key], name=key)
+    hdul.append(hdu)
+    print 'Created image for ' + key + '!'
 
 
-counts = np.array([312, 334, 308, 317])
-names = np.array(['NGC1', 'NGC2', 'NGC3', 'NGC4'])
-col1 = fits.Column(name='target', format='10A', array=names)
-col2 = fits.Column(name='counts', format='J', unit='DN', array=counts)
-col3 = fits.Column(name='notes', format='A10')
-col4 = fits.Column(name='spectrum', format='1000E')
-col5 = fits.Column(name='flag', format='L', array=[True, False, True, True])
-#hdu = fits.BinTableHDU.from_columns([col1, col2, col3, col4, col5])
-#coldefs = fits.ColDefs([col1, col2, col3, col4, col5])
-#hdu = fits.BinTableHDU.from_columns(coldefs)
-print astropy.version.version
-
-#print columns
-#columns = fits.ColDefs(columns)
-#print fits.BinTableHDU.from_columns(columns)
-#hdu.append(fits.BinTableHDU.from_columns(columns))
-#fits.BinTableHDU.from_columns
-#    print key
-#fits.Column(name='RA',array=ra_arr,format='E')
-#
-#print data.keys()
+#Write the output file
+hdul.writeto(paths['output'], overwrite=True)
+print 'Done! Written output file at ' + os.path.relpath(paths['output'])
