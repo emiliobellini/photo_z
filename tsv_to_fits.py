@@ -88,5 +88,6 @@ for key in image_fields:
 
 
 #Write the output file
-hdul.writeto(paths['output'], overwrite=True)
+os.remove(paths['output'])
+hdul.writeto(paths['output'])
 print 'Done! Written output file at ' + os.path.relpath(paths['output'])
