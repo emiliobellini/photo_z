@@ -1,4 +1,4 @@
-import os
+import os, sys
 import argparse
 import csv
 import numpy as np
@@ -55,8 +55,10 @@ with open(paths['input']) as f:
             data[key].append(value)
         if np.mod(count,1e6)==0:
             print '----> Read first ' + '%e' % count +  ' rows'
+            sys.stdout.flush()
         count = count + 1
 print 'Finished reading data!'
+sys.stdout.flush()
 
 
 #Create the first empty image and store it as the first element of hdul
@@ -79,12 +81,14 @@ for key in table_fields:
 hdu = fits.BinTableHDU.from_columns(columns, name='Table')
 hdul.append(hdu)
 print 'Created table!'
+sys.stdout.flush()
 
 #Create the images and append them to hdul
 for key in image_fields:
     hdu = fits.ImageHDU(data[key], name=key)
     hdul.append(hdu)
     print 'Created image for ' + key + '!'
+    sys.stdout.flush()
 
 
 #Write the output file
