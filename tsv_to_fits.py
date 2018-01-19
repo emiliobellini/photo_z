@@ -78,7 +78,7 @@ for num_bin in np.arange(num_bins):
                     value = listify(value)
                     value = floatify(value)
                     data[key].append(value)
-                if np.mod(count,1e1)==0:
+                if np.mod(count,1e5)==0:
                     print('----> Read first ' + '%e' % count +  ' rows of bin '
                         + bin_label)
                     sys.stdout.flush()
