@@ -106,7 +106,7 @@ for num_bin in np.arange(num_bins):
             columns.append(fits.Column(name=key,array=data[key],format='E'))
     hdu = fits.BinTableHDU.from_columns(columns, name='Table')
     hdul.append(hdu)
-    print('Created table for bin' + bin_label)
+    print('Created table for bin ' + bin_label)
     sys.stdout.flush()
 
     #Create the images and append them to hdul
@@ -123,7 +123,7 @@ for num_bin in np.arange(num_bins):
     except:
         pass
     hdul.writeto(paths['output'][num_bin])
-    print('Written output file for bin' + bin_label + 'at '
+    print('Written output file for bin ' + bin_label + ' at '
         + os.path.relpath(paths['output'][num_bin]))
 
 print('Success!!')
