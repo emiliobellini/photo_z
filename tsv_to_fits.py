@@ -124,6 +124,6 @@ for num_bin in np.arange(num_bins):
         pass
     hdul.writeto(paths['output'][num_bin])
     print('Written output file for bin' + bin_label + 'at '
-        + os.path.relpath(paths['output']))
+        + os.path.relpath(paths['output'][num_bin]))
 
 print('Success!!')
