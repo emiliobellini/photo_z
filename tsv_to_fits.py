@@ -3,6 +3,7 @@ import argparse
 import csv
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table, vstack
 
 #Redshift bins width used to divide the files
 Z_WIDTH = 0.2
@@ -34,14 +35,15 @@ z_bins = [[z_mins[n], z_mins[n+1]] for n in np.arange(num_bins)]
 #Define absolute paths to input and output files
 paths = {}
 paths['input'] = os.path.abspath(args.input_file)
-paths['output'] = []
+paths['part_output'] = []
 if args.output_file:
     tmp_output = os.path.splitext(os.path.abspath(args.output_file))
 else:
     tmp_output = (os.path.splitext(paths['input'])[0], '.fits')
+paths['output'] = tmp_output[0] + tmp_output[1]
 for count in np.arange(num_bins):
     fp = '__' + str(z_bins[count][0]) + 'z' + str(z_bins[count][1])
-    paths['output'].append(tmp_output[0] + fp + tmp_output[1])
+    paths['part_output'].append(tmp_output[0] + fp + tmp_output[1])
 
 
 def floatify(x):
@@ -113,17 +115,57 @@ for num_bin in np.arange(num_bins):
     for key in image_fields:
         hdu = fits.ImageHDU(data[key], name=key)
         hdul.append(hdu)
-        print 'Created image for ' + key + '!'
+        print 'Created image for ' + key + ' and bin ' + bin_label
         sys.stdout.flush()
 
 
     #Write the output file
     try:
-        os.remove(paths['output'][num_bin])
+        os.remove(paths['part_output'][num_bin])
     except:
         pass
-    hdul.writeto(paths['output'][num_bin])
-    print('Written output file for bin ' + bin_label + ' at '
-        + os.path.relpath(paths['output'][num_bin]))
+    hdul.writeto(paths['part_output'][num_bin])
+    print 'Written output file for bin ' + bin_label
+
+
+#Re-open all the files and join them in a single one
+
+#Create the first empty image
+hdu = fits.PrimaryHDU()
+hdul = fits.HDUList([hdu])
+
+#Open the fits files and generate a single table and image
+table_data = []
+image_data = {}
+for key in image_fields:
+    image_data[key] = []
+for fn in paths['part_output']:
+    table_data.append(Table.read(fn))
+    for key in image_fields:
+        image_data[key].append(fits.open(fn)[key].data)
+hdu = vstack(table_data, join_type='exact')
+hdu = fits.BinTableHDU(hdu, name='Table')
+hdul.append(hdu)
+print 'Created final table'
+for key in image_fields:
+    image_data[key] = np.vstack(tuple(image_data[key]))
+    hdu = fits.ImageHDU(image_data[key], name=key)
+    hdul.append(hdu)
+    print 'Created final image for ' + key
+
+#Write the output file
+try:
+    os.remove(paths['output'])
+except:
+    pass
+hdul.writeto(paths['output'])
+print('Written output file at ' + os.path.relpath(paths['output']))
+
+#Remove partial files
+for fn in paths['part_output']:
+    try:
+        os.remove(fn)
+    except:
+        pass
 
 print('Success!!')
