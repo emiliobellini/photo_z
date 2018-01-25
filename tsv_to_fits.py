@@ -144,7 +144,7 @@ for fn in paths['part_output']:
     for key in image_fields:
         image_data[key].append(fits.open(fn)[key].data)
 hdu = vstack(table_data, join_type='exact')
-hdu = fits.BinTableHDU(hdu, name='Table')
+hdu = fits.table_to_hdu(hdu)
 hdul.append(hdu)
 print 'Created final table'
 for key in image_fields:
