@@ -129,52 +129,6 @@ for num_bin in np.arange(num_bins):
     sys.stdout.flush()
 
 
-#Re-open all the files and join them in a single one
-
-#Create the first empty image
-hdu = fits.PrimaryHDU()
-hdul = fits.HDUList([hdu])
-
-#Create table
-del hdu
-for fn in paths['part_output']:
-    try:
-        hdu = vstack([hdu, Table.read(fn)], join_type='exact')
-    except NameError:
-        hdu = Table.read(fn)
-hdu = fits.table_to_hdu(hdu)
-hdul.append(hdu)
-print 'Created final table'
-sys.stdout.flush()
-#Create images
-for key in image_fields:
-    del hdu
-    for fn in paths['part_output']:
-        try:
-            hdu = np.vstack((hdu, fits.open(fn)[key].data))
-        except NameError:
-            hdu = fits.open(fn)[key].data
-    hdu = fits.ImageHDU(hdu, name=key)
-    hdul.append(hdu)
-    print 'Created final image for ' + key
-    sys.stdout.flush()
-
-#Write the output file
-try:
-    os.remove(paths['output'])
-except:
-    pass
-hdul.writeto(paths['output'])
-print 'Written output file at ' + os.path.relpath(paths['output'])
-sys.stdout.flush()
-
-#Remove partial files
-for fn in paths['part_output']:
-    try:
-        os.remove(fn)
-    except:
-        pass
-
 print 'Success!!'
 
 sys.exit()
