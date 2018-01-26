@@ -9,6 +9,7 @@ from astropy.table import Table, vstack
 parser = argparse.ArgumentParser("Unify several fits files into a single one")
 parser.add_argument("input_path", type=str, help="Input FITS path")
 parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
+parser.add_argument("--delete", "-d", help="Delete input files", action="store_true")
 args = parser.parse_args()
 
 
@@ -45,8 +46,12 @@ hdu = fits.table_to_hdu(hdu)
 hdul.append(hdu)
 print 'Created final table'
 sys.stdout.flush()
+
+#Get the list of images stored
+with fits.open(paths['input'][0]) as imgs:
+    images = [x.name for x in imgs if x.is_image and x.size>0]
 #Create images
-for key in ['PZ_full']:
+for key in images:
     del hdu
     for fn in paths['input']:
         try:
@@ -67,12 +72,13 @@ hdul.writeto(paths['output'])
 print 'Written output file at ' + os.path.relpath(paths['output'])
 sys.stdout.flush()
 
-# #Remove partial files
-# for fn in paths['input']:
-#     try:
-#         os.remove(fn)
-#     except:
-#         pass
+#Remove partial files
+if args.delete:
+    for fn in paths['input']:
+        try:
+            os.remove(fn)
+        except:
+            pass
 
 print 'Success!!'
 
