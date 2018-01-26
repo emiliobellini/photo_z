@@ -1,12 +1,27 @@
-import os, fnmatch
+import os, sys, fnmatch
 import argparse
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table, vstack
 
 
 #Photo-z Bins
 z_mins = [0.15,0.29,0.43,0.57,0.70,0.90,1.10,1.30]
-z_bins = [[z_mins[n], z_mins[n+1]] for n in np.arange(len(z_mins)-1)]
+z_bins = {}
+for n in np.arange(len(z_mins)-1):
+    key = str(z_mins[n])+'<z_B<'+str(z_mins[n+1])
+    z_bins[key] = [z_mins[n], z_mins[n+1]]
+
+
+#Criteria used to select the data
+def select_data(data, z_min, z_max):
+
+    sel = data['Z_B']>=z_min
+    sel = (data['Z_B']<z_max)*sel
+    sel = (data['MASK']<=1)*sel
+    sel = ([x in good_fit_patterns for x in data['field']])*sel
+
+    return sel
 
 
 #Good fit patterns
@@ -37,7 +52,7 @@ good_fit_patterns = ['W1m0m0', 'W1m0m3', 'W1m0m4', 'W1m0p1', 'W1m0p2', 'W1m0p3',
 
 # Parse the given arguments
 parser = argparse.ArgumentParser("Generate plots of binned Photo-z")
-parser.add_argument("input_path", type=str, help="Input FITS path")
+parser.add_argument("input_file", type=str, help="Input FITS file")
 parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
 parser.add_argument("--output_plot", "-p", type=str, default = None, help="Output plot")
 args = parser.parse_args()
@@ -45,18 +60,11 @@ args = parser.parse_args()
 
 #Define absolute paths to input and output files
 paths = {}
-split_input = os.path.split(os.path.abspath(args.input_path))
-paths['input'] = []
-for fn in os.listdir(split_input[0]):
-    if fnmatch.fnmatch(fn, '*.fits'):
-        if fnmatch.fnmatch(fn, split_input[1]+'*'):
-            paths['input'].append(split_input[0] + '/' + fn)
+paths['input'] = os.path.abspath(args.input_file)
 if args.output_file:
     paths['output_file'] = os.path.abspath(args.output_file)
 else:
-    paths['output_file'] = os.path.abspath(args.input_path)
-    paths['output_file'] = os.path.splitext(paths['output_file'])[0]
-    paths['output_file'] = paths['output_file'].rstrip('_')
+    paths['output_file'] = os.path.splitext(paths['input'])[0]
     paths['output_file'] = paths['output_file'] + '_bins.fits'
 if args.output_plot:
     paths['output_plot'] = os.path.abspath(args.output_plot)
@@ -66,36 +74,32 @@ else:
 
 
 #Open files and store datas
-table = []
-image = []
-for fn in paths['input']:
-    table.append(fits.open(fn)[1].data)
-    image.append(fits.open(fn)[2].data)
+#Read table
+table = Table.read(paths['input'])
+#Read image
+image = fits.open(paths['input'])['PZ_full'].data
 
 
-#Criteria used to select the data
-def select_data_pos(data, z_min, z_max):
-    pos = np.argwhere(data['Z_B']>=z_min).flatten()
-    pos = np.intersect1d(pos, np.argwhere(data['Z_B']<z_max).flatten())
-    pos = np.intersect1d(pos, np.argwhere(data['MASK']<=1).flatten())
-#    pos = np.intersect1d(pos, np.argwhere(data['field'] in good_fit_patterns).flatten())
-
-    return np.array(pos)
-
-
-#Get an array with positions of data for each bin
-pos_bins = {}
-for [z_min, z_max] in z_bins:
-    key = str(z_min)+'<z_B<'+str(z_max)
-    pos_bins[key] = []
-    for count in range(len(table)):
-        pos_bins[key].append(select_data_pos(table[count], z_min, z_max))
+#Get arrays with selected data for each bin
+sel_bins = {}
+num_sel = 0
+num_tot = 0
+for key in z_bins.keys():
+   sel_bins[key] = select_data(table, z_bins[key][0], z_bins[key][1])
+   num_sel = num_sel + sel_bins[key][np.where(sel_bins[key] == True)].size
+print('Selected ' + str(num_sel) + ' galaxies (' + '{:2.4f}'.format(num_sel/154./60./60.)
+    + ' per sq arcmin).')
+sys.stdout.flush()
+print('Before they were ' + str(sel_bins[key].size) + ' ('
+    + '{:2.4f}'.format(sel_bins[key].size/154./60./60.) + ' per sq arcmin).')
+sys.stdout.flush()
 
 
-#Generate binned Photo-z
-z_step = 0.05
-photoz_x = (np.arange(len(image[0][0]))+1./2.)*z_step
-photoz_y = {}
-for key in pos_bins.keys():
-    for count in range(len(image)):
-        print pos_bins[key][count]
+# #Generate binned Photo-z
+# z_step = 0.05
+# photoz_x = (np.arange(len(image[0]))+1./2.)*z_step
+# photoz_y = {}
+# for key in z_bins.keys():
+#     print len(table['Z_B'][sel_bins[key]])
+#     print len(image[sel_bins[key]])
+#     # print len(sel_bins[key])
