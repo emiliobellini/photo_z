@@ -1,8 +1,11 @@
 import os, sys, fnmatch
 import argparse
 import numpy as np
+import matplotlib
+import pylab as plt
 from astropy.io import fits
 from astropy.table import Table, vstack
+
 
 
 #Photo-z Bins
@@ -85,8 +88,9 @@ sel_bins = {}
 num_sel = 0
 num_tot = 0
 for key in z_bins.keys():
-   sel_bins[key] = select_data(table, z_bins[key][0], z_bins[key][1])
-   num_sel = num_sel + sel_bins[key][np.where(sel_bins[key] == True)].size
+    sel_bins[key] = select_data(table, z_bins[key][0], z_bins[key][1])
+    num_sel = num_sel + sel_bins[key][np.where(sel_bins[key] == True)].size
+
 print('Selected ' + str(num_sel) + ' galaxies (' + '{:2.4f}'.format(num_sel/154./60./60.)
     + ' per sq arcmin).')
 sys.stdout.flush()
@@ -95,11 +99,61 @@ print('Before they were ' + str(sel_bins[key].size) + ' ('
 sys.stdout.flush()
 
 
-# #Generate binned Photo-z
-# z_step = 0.05
-# photoz_x = (np.arange(len(image[0]))+1./2.)*z_step
-# photoz_y = {}
-# for key in z_bins.keys():
-#     print len(table['Z_B'][sel_bins[key]])
-#     print len(image[sel_bins[key]])
-#     # print len(sel_bins[key])
+#Generate binned Photo-z
+
+#Step size
+z_step = 0.05
+photoz_x = (np.arange(len(image[0]))+1./2.)*z_step
+
+#Normalize photoz
+image = (image.T / image.sum(axis=1)).T / z_step
+print 'Normalized Photo-z'
+sys.stdout.flush()
+
+#Calculate binned Photo-z
+photoz_y = {}
+for key in z_bins.keys():
+    w_tot = table['weight'][sel_bins[key]].sum()
+    photoz_y[key] = np.dot(table['weight'][sel_bins[key]].data, image[sel_bins[key]])/w_tot
+    print 'Calculated Photo-z for bin ' + key
+    sys.stdout.flush()
+
+
+#Save Photo-z data
+
+#Create the first empty image
+hdu = fits.PrimaryHDU()
+hdul = fits.HDUList([hdu])
+
+columns = []
+columns.append(fits.Column(name='z',array=photoz_x,format='E'))
+for key in sorted(photoz_y.keys()):
+    columns.append(fits.Column(name=key,array=photoz_y[key],format='E'))
+hdu = fits.BinTableHDU.from_columns(columns, name='Photo-z')
+hdul.append(hdu)
+#Write the output file
+try:
+    os.remove(paths['output_file'])
+except:
+    pass
+hdul.writeto(paths['output_file'])
+print 'Written output file at ' + os.path.relpath(paths['output_file'])
+sys.stdout.flush()
+
+
+
+#Generate plot
+for key in z_bins.keys():
+    plt.plot(photoz_x, photoz_y[key], label = key)
+plt.legend(loc="best", frameon = False, fontsize=10)
+plt.title(str(num_sel) + '/' + str(sel_bins[key].size)
+    + ' galaxies (' + '{:2.4f}'.format(num_sel/154./60./60.) + '/'
+    + '{:2.4f}'.format(sel_bins[key].size/154./60./60.) + ' per sq arcmin)')
+plt.xlabel(r'$z$')
+plt.ylabel(r'$P$')
+plt.xlim(0.,2.)
+plt.savefig(paths['output_plot'])
+print 'Saved plot at ' + os.path.relpath(paths['output_plot'])
+sys.stdout.flush()
+
+print 'Success!!'
