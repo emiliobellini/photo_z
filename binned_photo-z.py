@@ -22,8 +22,8 @@ def select_data(data, z_min, z_max):
 
     sel = data['Z_B']>=z_min
     sel = (data['Z_B']<z_max)*sel
-    sel = (data['MASK']<1)*sel
-    # sel = ([x in good_fit_patterns for x in data['field']])*sel
+    sel = (data['MASK']<=1)*sel
+    sel = ([x in good_fit_patterns for x in data['field']])*sel
 
     return sel
 
@@ -97,9 +97,6 @@ for key in z_bins.keys():
 dens_sel = w**2/w2/(94.*60.*60.)
 print('Selected ' + str(num_sel) + ' galaxies (' + '{:2.4f}'.format(dens_sel)
     + ' per sq arcmin).')
-sys.stdout.flush()
-print('Before they were ' + str(sel_bins[key].size) + ' ('
-    + '{:2.4f}'.format(sel_bins[key].size/154./60./60.) + ' per sq arcmin).')
 sys.stdout.flush()
 
 
