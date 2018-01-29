@@ -125,12 +125,26 @@ for key in z_bins.keys():
 hdu = fits.PrimaryHDU()
 hdul = fits.HDUList([hdu])
 
+#Create a table with all the galaxies for each bin
+for key in sorted(z_bins.keys()):
+    columns = []
+    hdu = table[sel_bins[key]]
+    hdu.meta['EXTNAME'] = key
+    hdu = fits.table_to_hdu(hdu)
+    hdul.append(hdu)
+    print 'Created table for bin ' + key
+    sys.stdout.flush()
+
+#Create table with binned Photo-z
 columns = []
 columns.append(fits.Column(name='z',array=photoz_x,format='E'))
 for key in sorted(photoz_y.keys()):
     columns.append(fits.Column(name=key,array=photoz_y[key],format='E'))
 hdu = fits.BinTableHDU.from_columns(columns, name='Photo-z')
 hdul.append(hdu)
+print 'Created table with binned Photo-z'
+sys.stdout.flush()
+
 #Write the output file
 try:
     os.remove(paths['output_file'])
@@ -141,9 +155,8 @@ print 'Written output file at ' + os.path.relpath(paths['output_file'])
 sys.stdout.flush()
 
 
-
 #Generate plot
-for key in z_bins.keys():
+for key in sorted(z_bins.keys()):
     plt.plot(photoz_x, photoz_y[key], label = key)
 plt.legend(loc="best", frameon = False, fontsize=10)
 plt.title(str(num_sel) + '/' + str(sel_bins[key].size)
