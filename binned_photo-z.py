@@ -2,6 +2,7 @@ import os, sys, fnmatch
 import argparse
 import numpy as np
 import matplotlib
+matplotlib.use('Agg')
 import pylab as plt
 from astropy.io import fits
 from astropy.table import Table, vstack
