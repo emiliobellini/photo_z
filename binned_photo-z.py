@@ -22,8 +22,8 @@ def select_data(data, z_min, z_max):
 
     sel = data['Z_B']>=z_min
     sel = (data['Z_B']<z_max)*sel
-    sel = (data['MASK']<2)*sel
-    sel = ([x in good_fit_patterns for x in data['field']])*sel
+    sel = (data['MASK']<1)*sel
+    # sel = ([x in good_fit_patterns for x in data['field']])*sel
 
     return sel
 
@@ -86,13 +86,16 @@ image = fits.open(paths['input'])['PZ_full'].data
 
 #Get arrays with selected data for each bin
 sel_bins = {}
-num_sel = 0
-num_tot = 0
+num_sel = 0.
+w = 0.
+w2 = 0.
 for key in z_bins.keys():
     sel_bins[key] = select_data(table, z_bins[key][0], z_bins[key][1])
     num_sel = num_sel + sel_bins[key][np.where(sel_bins[key] == True)].size
-
-print('Selected ' + str(num_sel) + ' galaxies (' + '{:2.4f}'.format(num_sel/154./60./60.)
+    w = w + (table[sel_bins[key]]['weight'].sum())
+    w2 = w2 + (table[sel_bins[key]]['weight']**2).sum()
+dens_sel = num_sel*w**2/w2/(94.*60.*60.)
+print('Selected ' + str(num_sel) + ' galaxies (' + '{:2.4f}'.format(dens_sel)
     + ' per sq arcmin).')
 sys.stdout.flush()
 print('Before they were ' + str(sel_bins[key].size) + ' ('
@@ -160,9 +163,7 @@ sys.stdout.flush()
 for key in sorted(z_bins.keys()):
     plt.plot(photoz_x, photoz_y[key], label = key)
 plt.legend(loc="best", frameon = False, fontsize=10)
-plt.title(str(num_sel) + '/' + str(sel_bins[key].size)
-    + ' galaxies (' + '{:2.4f}'.format(num_sel/154./60./60.) + '/'
-    + '{:2.4f}'.format(sel_bins[key].size/154./60./60.) + ' per sq arcmin)')
+plt.title(str(num_sel) + ' galaxies (' + '{:2.2f}'.format(dens_sel) + ' per sq arcmin)')
 plt.xlabel(r'$z$')
 plt.ylabel(r'$P$')
 plt.xlim(0.,2.)
