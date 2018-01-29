@@ -22,7 +22,7 @@ def select_data(data, z_min, z_max):
 
     sel = data['Z_B']>=z_min
     sel = (data['Z_B']<z_max)*sel
-    sel = (data['MASK']<=1)*sel
+    sel = (data['MASK']<2)*sel
     sel = ([x in good_fit_patterns for x in data['field']])*sel
 
     return sel
