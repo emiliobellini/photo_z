@@ -1,6 +1,8 @@
 import os, sys, fnmatch
 import argparse
 import numpy as np
+import matplotlib
+import pylab as plt
 from astropy.io import fits
 from astropy.table import Table, vstack
 
@@ -52,20 +54,26 @@ good_fit_patterns = ['W1m0m0', 'W1m0m3', 'W1m0m4', 'W1m0p1', 'W1m0p2', 'W1m0p3',
 
 
 # Parse the given arguments
-parser = argparse.ArgumentParser("Generate plots of binned Photo-z")
+parser = argparse.ArgumentParser("Generate binned Photo-z")
 parser.add_argument("input_file", type=str, help="Input FITS file")
-parser.add_argument("--output", "-o", type=str, default = None, help="Output file")
+parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
+parser.add_argument("--output_plot", "-p", type=str, default = None, help="Output plot")
 args = parser.parse_args()
 
 
 #Define absolute paths to input and output files
 paths = {}
 paths['input'] = os.path.abspath(args.input_file)
-if args.output:
-    paths['output'] = os.path.abspath(args.output)
+if args.output_file:
+    paths['output_file'] = os.path.abspath(args.output_file)
 else:
-    paths['output'] = os.path.splitext(paths['input'])[0]
-    paths['output'] = paths['output'] + '_bins.fits'
+    paths['output_file'] = os.path.splitext(paths['input'])[0]
+    paths['output_file'] = paths['output_file'] + '_bins.fits'
+if args.output_plot:
+    paths['output_plot'] = os.path.abspath(args.output_plot)
+else:
+    paths['output_plot'] = os.path.splitext(paths['output_file'])[0]
+    paths['output_plot'] = paths['output_plot'] + '.pdf'
 
 
 #Open files and store datas
@@ -139,12 +147,27 @@ sys.stdout.flush()
 
 #Write the output file
 try:
-    os.remove(paths['output'])
+    os.remove(paths['output_file'])
 except:
     pass
-hdul.writeto(paths['output'])
-print 'Written output file at ' + os.path.relpath(paths['output'])
+hdul.writeto(paths['output_file'])
+print 'Written output file at ' + os.path.relpath(paths['output_file'])
 sys.stdout.flush()
 
+
+#Generate plot
+for key in sorted(z_bins.keys()):
+    plt.plot(photoz_x, photoz_y[key], label = key)
+plt.legend(loc="best", frameon = False, fontsize=10)
+plt.title(str(num_sel) + '/' + str(sel_bins[key].size)
+    + ' galaxies (' + '{:2.4f}'.format(num_sel/154./60./60.) + '/'
+    + '{:2.4f}'.format(sel_bins[key].size/154./60./60.) + ' per sq arcmin)')
+plt.xlabel(r'$z$')
+plt.ylabel(r'$P$')
+plt.xlim(0.,2.)
+plt.savefig(paths['output_plot'])
+plt.close()
+print 'Saved plot at ' + os.path.relpath(paths['output_plot'])
+sys.stdout.flush()
 
 print 'Success!!'
