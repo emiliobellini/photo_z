@@ -84,20 +84,35 @@ table = Table.read(paths['input'])
 image = fits.open(paths['input'])['PZ_full'].data
 
 
+#Print effective densities for each field
+sel_bins = select_data(table, z_mins[0], z_mins[-1])
+w, w2 = {'TOT': 0.}, {'TOT': 0.}
+n_eff = {}
+n_gal = {'TOT': 0}
+A_eff = {'W1': 42.9, 'W2': 12.1, 'W3': 26.1, 'W4': 13.3}
+A_eff['TOT'] = np.array(A_eff.values()).sum()
+for key in ['W1', 'W2', 'W3', 'W4']:
+    w[key] = np.array([x['weight'] for x in table[sel_bins] if key in x['field']])
+    n_gal[key] = len(w[key])
+    w2[key] = (w[key]**2).sum()
+    w[key] = w[key].sum()
+    n_eff[key] = w[key]**2/w2[key]/(A_eff[key]*60.*60.)
+    n_gal['TOT'] = n_gal['TOT'] + n_gal[key]
+    w['TOT'] = w['TOT'] + w[key]
+    w2['TOT'] = w2['TOT'] + w2[key]
+    print('Selected ' + str(n_gal[key]) + ' galaxies for field ' + key
+        + ' (' + '{:2.4f}'.format(n_eff[key]) + ' per sq arcmin).')
+    sys.stdout.flush()
+n_eff['TOT'] = w['TOT']**2/w2['TOT']/(A_eff['TOT']*60.*60.)
+print('Selected in total ' + str(n_gal['TOT']) + ' galaxies ('
+    + '{:2.4f}'.format(n_eff['TOT']) + ' per sq arcmin).')
+sys.stdout.flush()
+
+
 #Get arrays with selected data for each bin
 sel_bins = {}
-num_sel = 0
-w = 0.
-w2 = 0.
 for key in z_bins.keys():
     sel_bins[key] = select_data(table, z_bins[key][0], z_bins[key][1])
-    num_sel = num_sel + sel_bins[key][np.where(sel_bins[key] == True)].size
-    w = w + (table[sel_bins[key]]['weight'].sum())
-    w2 = w2 + (table[sel_bins[key]]['weight']**2).sum()
-dens_sel = w**2/w2/(94.*60.*60.)
-print('Selected ' + str(num_sel) + ' galaxies (' + '{:2.4f}'.format(dens_sel)
-    + ' per sq arcmin).')
-sys.stdout.flush()
 
 
 #Generate binned Photo-z
@@ -160,7 +175,7 @@ sys.stdout.flush()
 for key in sorted(z_bins.keys()):
     plt.plot(photoz_x, photoz_y[key], label = key)
 plt.legend(loc="best", frameon = False, fontsize=10)
-plt.title(str(num_sel) + ' galaxies (' + '{:2.2f}'.format(dens_sel) + ' per sq arcmin)')
+plt.title(str(n_gal['TOT']) + ' galaxies (' + '{:2.2f}'.format(n_eff['TOT']) + ' per sq arcmin)')
 plt.xlabel(r'$z$')
 plt.ylabel(r'$P$')
 plt.xlim(0.,2.)
