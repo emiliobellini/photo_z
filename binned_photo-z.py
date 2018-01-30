@@ -142,14 +142,19 @@ hdu = fits.PrimaryHDU()
 hdul = fits.HDUList([hdu])
 
 #Create a table with all the galaxies for each bin
+del hdu
 for key in sorted(z_bins.keys()):
-    columns = []
-    hdu = table[sel_bins[key]]
-    hdu.meta['EXTNAME'] = key
-    hdu = fits.table_to_hdu(hdu)
-    hdul.append(hdu)
-    print 'Created table for bin ' + key
-    sys.stdout.flush()
+    hdu_part = table[sel_bins[key]]
+    new_col = np.full(len(hdu_part),key)
+    hdu_part['BIN'] = new_col
+    try:
+        hdu = vstack([hdu, hdu_part], join_type='exact')
+    except NameError:
+        hdu = hdu_part
+hdu = fits.table_to_hdu(hdu)
+hdul.append(hdu)
+print 'Created table with data'
+sys.stdout.flush()
 
 #Create table with binned Photo-z
 columns = []
