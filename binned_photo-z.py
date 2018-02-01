@@ -59,6 +59,7 @@ parser = argparse.ArgumentParser("Generate binned Photo-z")
 parser.add_argument("input_file", type=str, help="Input FITS file")
 parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
 parser.add_argument("--output_plot", "-p", type=str, default = None, help="Output plot")
+parser.add_argument("--skip_info", "-s", help="Skip info messages and save time", action="store_true")
 args = parser.parse_args()
 
 
@@ -85,28 +86,29 @@ image = fits.open(paths['input'])['PZ_full'].data
 
 
 #Print effective densities for each field
-sel_bins = select_data(table, z_mins[0], z_mins[-1])
-w, w2 = {'TOT': 0.}, {'TOT': 0.}
-n_eff = {}
-n_gal = {'TOT': 0}
-A_eff = {'W1': 42.9, 'W2': 12.1, 'W3': 26.1, 'W4': 13.3}
-A_eff['TOT'] = np.array(A_eff.values()).sum()
-for key in ['W1', 'W2', 'W3', 'W4']:
-    w[key] = np.array([x['weight'] for x in table[sel_bins] if key in x['field']])
-    n_gal[key] = len(w[key])
-    w2[key] = (w[key]**2).sum()
-    w[key] = w[key].sum()
-    n_eff[key] = w[key]**2/w2[key]/(A_eff[key]*60.*60.)
-    n_gal['TOT'] = n_gal['TOT'] + n_gal[key]
-    w['TOT'] = w['TOT'] + w[key]
-    w2['TOT'] = w2['TOT'] + w2[key]
-    print('Selected ' + str(n_gal[key]) + ' galaxies for field ' + key
-        + ' (' + '{:2.4f}'.format(n_eff[key]) + ' per sq arcmin).')
+if not args.skip_info:
+    sel_bins = select_data(table, z_mins[0], z_mins[-1])
+    w, w2 = {'TOT': 0.}, {'TOT': 0.}
+    n_eff = {}
+    n_gal = {'TOT': 0}
+    A_eff = {'W1': 42.9, 'W2': 12.1, 'W3': 26.1, 'W4': 13.3}
+    A_eff['TOT'] = np.array(A_eff.values()).sum()
+    for key in ['W1', 'W2', 'W3', 'W4']:
+        w[key] = np.array([x['weight'] for x in table[sel_bins] if key in x['field']])
+        n_gal[key] = len(w[key])
+        w2[key] = (w[key]**2).sum()
+        w[key] = w[key].sum()
+        n_eff[key] = w[key]**2/w2[key]/(A_eff[key]*60.*60.)
+        n_gal['TOT'] = n_gal['TOT'] + n_gal[key]
+        w['TOT'] = w['TOT'] + w[key]
+        w2['TOT'] = w2['TOT'] + w2[key]
+        print('Selected ' + str(n_gal[key]) + ' galaxies for field ' + key
+            + ' (' + '{:2.4f}'.format(n_eff[key]) + ' per sq arcmin).')
+        sys.stdout.flush()
+    n_eff['TOT'] = w['TOT']**2/w2['TOT']/(A_eff['TOT']*60.*60.)
+    print('Selected in total ' + str(n_gal['TOT']) + ' galaxies ('
+        + '{:2.4f}'.format(n_eff['TOT']) + ' per sq arcmin).')
     sys.stdout.flush()
-n_eff['TOT'] = w['TOT']**2/w2['TOT']/(A_eff['TOT']*60.*60.)
-print('Selected in total ' + str(n_gal['TOT']) + ' galaxies ('
-    + '{:2.4f}'.format(n_eff['TOT']) + ' per sq arcmin).')
-sys.stdout.flush()
 
 
 #Get arrays with selected data for each bin
@@ -180,7 +182,8 @@ sys.stdout.flush()
 for key in sorted(z_bins.keys()):
     plt.plot(photoz_x, photoz_y[key], label = key)
 plt.legend(loc="best", frameon = False, fontsize=10)
-plt.title(str(n_gal['TOT']) + ' galaxies (' + '{:2.2f}'.format(n_eff['TOT']) + ' per sq arcmin)')
+if not args.skip_info:
+    plt.title(str(n_gal['TOT']) + ' galaxies (' + '{:2.2f}'.format(n_eff['TOT']) + ' per sq arcmin)')
 plt.xlabel(r'$z$')
 plt.ylabel(r'$P$')
 plt.xlim(0.,2.)
