@@ -174,6 +174,8 @@ try:
 except:
     pass
 hdul.writeto(paths['output_file'])
+print hdul.info()
+sys.stdout.flush()
 print 'Written output file at ' + os.path.relpath(paths['output_file'])
 sys.stdout.flush()
 

@@ -84,15 +84,22 @@ sys.stdout.flush()
 
 #Update input file with a table containing Cl's
 #Create table
+table_name = 'Cls'
 columns = []
 for count in range(len(keys)):
     l = str(ELL_MAX+1)
     columns.append(fits.Column(name=keys[count],array=angular_cl[count],format=l+'E'))
-hdu = fits.BinTableHDU.from_columns(columns, name='Cls')
+hdu = fits.BinTableHDU.from_columns(columns, name=table_name)
 #Update existing file
 with fits.open(paths['input'], mode='update') as hdul:
+    try:
+        hdul.__delitem__(table_name)
+    except:
+        pass
     hdul.append(hdu)
     hdul.flush()
+    print hdul.info()
+    sys.stdout.flush()
 print 'Updated input file at ' + os.path.relpath(paths['input'])
 sys.stdout.flush()
 

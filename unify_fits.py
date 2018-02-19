@@ -69,6 +69,8 @@ try:
 except:
     pass
 hdul.writeto(paths['output'])
+print hdul.info()
+sys.stdout.flush()
 print 'Written output file at ' + os.path.relpath(paths['output'])
 sys.stdout.flush()
 

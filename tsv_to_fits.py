@@ -125,6 +125,8 @@ for num_bin in np.arange(num_bins):
     except:
         pass
     hdul.writeto(paths['part_output'][num_bin])
+    print hdul.info()
+    sys.stdout.flush()
     print 'Written output file for bin ' + bin_label
     sys.stdout.flush()
 
