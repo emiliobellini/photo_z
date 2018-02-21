@@ -78,22 +78,19 @@ for count1 in range(len(keys)):
         lens1 = lens[keys[count1]]
         lens2 = lens[keys[count2]]
         angular_cl[count1][count2] = ccl.angular_cl(cosmo, lens1, lens2, ell)
+angular_cl = np.swapaxes(angular_cl,2,0)
 print 'Calculated Cl\'s'
 sys.stdout.flush()
 
 
-#Update input file with a table containing Cl's
-#Create table
-table_name = 'Cls'
-columns = []
-for count in range(len(keys)):
-    l = str(ELL_MAX+1)
-    columns.append(fits.Column(name=keys[count],array=angular_cl[count],format=l+'E'))
-hdu = fits.BinTableHDU.from_columns(columns, name=table_name)
-#Update existing file
+#Update input file with an image containing Cl's
+#Create image
+image_name = 'Cls'
+hdu = fits.ImageHDU(angular_cl, name=image_name)
+# #Update existing file
 with fits.open(paths['input'], mode='update') as hdul:
     try:
-        hdul.__delitem__(table_name)
+        hdul.__delitem__(image_name)
     except:
         pass
     hdul.append(hdu)
@@ -108,7 +105,8 @@ sys.stdout.flush()
 if not args.skip_plots:
     #Plot diagonal Cl's
     for count in range(len(keys)):
-        plt.plot(ell, angular_cl[count][count], label=r'$'+keys[count]+'$')
+        y = [angular_cl[x][count][count] for x in ell]
+        plt.plot(ell, y, label=r'$'+keys[count]+'$')
     plt.xlabel(r'$\ell$')
     plt.ylabel(r'$C^\ell_{ii}$')
     plt.title(r'Auto-correlations')
@@ -126,7 +124,8 @@ if not args.skip_plots:
     #Plot off-diagonal Cl's (a plot for each row of the matrix)
     for count1 in range(len(keys)):
         for count2 in range(len(keys)):
-            plt.plot(ell, angular_cl[count1][count2], label=r'$'+keys[count2]+'$')
+            y = [angular_cl[x][count1][count2] for x in ell]
+            plt.plot(ell, y, label=r'$'+keys[count2]+'$')
         plt.xlabel(r'$\ell$')
         plt.ylabel(r'$C^\ell_{ij}$')
         plt.title(r'Cross-correlation with $'+keys[count1]+'$')
