@@ -106,7 +106,7 @@ for num_bin in np.arange(num_bins):
                 columns.append(fits.Column(name=key,array=data[key],format=l+'E'))
         if type(data[key][0]) is float:
             columns.append(fits.Column(name=key,array=data[key],format='E'))
-    hdu = fits.BinTableHDU.from_columns(columns, name='Table')
+    hdu = fits.BinTableHDU.from_columns(columns, name='Data')
     hdul.append(hdu)
     print('Created table for bin ' + bin_label)
     sys.stdout.flush()
