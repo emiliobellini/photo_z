@@ -87,7 +87,7 @@ sys.stdout.flush()
 #Create image
 image_name = 'Cls'
 hdu = fits.ImageHDU(angular_cl, name=image_name)
-# #Update existing file
+#Update existing file
 with fits.open(paths['input'], mode='update') as hdul:
     try:
         hdul.__delitem__(image_name)

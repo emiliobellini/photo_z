@@ -86,6 +86,7 @@ image = fits.open(paths['input'])['PZ_full'].data
 
 
 #Print effective densities for each field
+#TODO: insert correct values for A_eff
 if not args.skip_info:
     sel_bins = select_data(table, z_mins[0], z_mins[-1])
     w, w2 = {'TOT': 0.}, {'TOT': 0.}
@@ -157,6 +158,10 @@ hdu = fits.table_to_hdu(hdu)
 hdul.append(hdu)
 print 'Created table with data'
 sys.stdout.flush()
+
+#Create image with redshift bins
+hdu = fits.ImageHDU([z_bins[x] for x in sorted(z_bins.keys())], name='Z_bins')
+hdul.append(hdu)
 
 #Create table with binned Photo-z
 columns = []
