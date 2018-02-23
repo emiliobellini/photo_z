@@ -35,7 +35,9 @@ else:
 #Read image with the Cl's (S, signal)
 with fits.open(paths['input']) as fn:
     S = fn['Cls'].data
+    z_bins = fn['z_bins'].data
 ells = np.array(range(len(S)))
+bins_lst = range(len(z_bins))
 
 
 #Calculate n_eff and sigma_g for each bin
@@ -63,6 +65,10 @@ eigvec = np.array([eigvec[x][:,new_ord[x]] for x in ells])
 
 #Calculate transformation matrix (E) from eigenvectors and L^-1
 E = np.array([np.dot(eigvec[x].T,inv_L[x]) for x in ells])
+#Change sign to eigenvectors according to the first element
+signs = np.array([[np.sign(E[ell][x][0]/E[2][x][0]) for x in bins_lst] for ell in ells])
+E = np.array([(E[x].T*signs[x]).T for x in ells])
+
 
 #Calculate the KL transformed Cl's
 angular_cl = np.array([np.diag(eigval[x]) for x in ells])
@@ -71,7 +77,7 @@ angular_cl = np.array([np.diag(eigval[x]) for x in ells])
 test = np.array([np.dot(E[x],S[x]+N[x]) for x in ells])
 test = np.array([np.dot(test[x],E[x].T) for x in ells])
 test = np.array([abs(angular_cl[x]-test[x]) for x in ells])
-test = test.max()/abs(angular_cl).max()
+test = test[1:].max()/abs(angular_cl[1:]).max()
 if test>MP_THRESHOLD:
     print('WARNING: the transformation matrix does not reproduce the correct Cl\'s.'
         + ' The relative difference is ' + '{:1.2e}'.format(test)
@@ -86,8 +92,8 @@ else:
 #Update input file with an image containing Cl's after KL and the transformation matrix
 #Create image for Cl's
 hdu = {}
-hdu['Cls-KL'] = fits.ImageHDU(angular_cl, name='Cls-KL')
-hdu['KL-T'] = fits.ImageHDU(E, name='KL-T')
+hdu['Cls_KL'] = fits.ImageHDU(angular_cl, name='Cls_KL')
+hdu['KL_T'] = fits.ImageHDU(E, name='KL_T')
 with fits.open(paths['input'], mode='update') as hdul:
     for im in hdu.keys():
         try:
@@ -107,7 +113,7 @@ sys.stdout.flush()
 if not args.skip_plots:
     #Plot KL Cl's
     cm = plt.get_cmap('Blues')
-    for count in range(len(angular_cl[0])):
+    for count in bins_lst:
         y = [angular_cl[x][count][count] for x in ells]
         plt.plot(ells, y, label=r'$\alpha_'+str(count+1)+'$',
         color=cm(0.2+0.6*(1.-float(count)/float(len(angular_cl[0])))))
@@ -127,9 +133,9 @@ if not args.skip_plots:
 
     #Plot eigenvectors
     for count in [0,1,2]:
-        for ell in ells[2:]:
-            x = range(len(eigvec[ell][:,count]))
-            plt.plot(x, eigvec[ell][:,count])
+        for ell in ells[2:5]:
+            x = np.array([np.average(z_bins[x]) for x in bins_lst])
+            plt.plot(x, E[ell][count]/np.linalg.norm(E[ell][count]))
     plot_path = os.path.splitext(paths['output_plot'])
     plot_path = plot_path[0]+'_eigenvectors'+plot_path[1]
     plt.savefig(plot_path)

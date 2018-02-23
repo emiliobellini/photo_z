@@ -168,7 +168,7 @@ columns = []
 columns.append(fits.Column(name='z',array=photoz_x,format='E'))
 for key in sorted(photoz_y.keys()):
     columns.append(fits.Column(name=key,array=photoz_y[key],format='E'))
-hdu = fits.BinTableHDU.from_columns(columns, name='Photo-z')
+hdu = fits.BinTableHDU.from_columns(columns, name='Photo_z')
 hdul.append(hdu)
 print 'Created table with binned Photo-z'
 sys.stdout.flush()

@@ -43,7 +43,7 @@ else:
 
 #Open files and store datas
 #Read table
-table = Table.read(paths['input'], hdu='Photo-z')
+table = Table.read(paths['input'], hdu='Photo_z')
 
 
 #Extract binned photo-z
