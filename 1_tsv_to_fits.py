@@ -4,6 +4,9 @@ import csv
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table, vstack
+import variables as vrs
+
+
 
 #Redshift bins width used to divide the files
 Z_WIDTH = 0.2
@@ -14,7 +17,7 @@ Z_MIN = 0.0
 Z_MAX = 3.5
 #Fields to be stored in images (all the rest will be stored in a table)
 #Chenge this if you want different fields to be stored in images
-image_fields = ['PZ_full']
+IMAGE_FIELDS = ['PZ_full']
 
 
 # Parse the given arguments
@@ -25,7 +28,6 @@ args = parser.parse_args()
 
 
 #Calculate the redshift bin for each file
-#z_mins = [Z_MIN+Z_WIDTH*n for n in np.arange(np.trunc((Z_TH-Z_MIN)/Z_WIDTH))]
 num_bins = int((Z_TH-Z_MIN)/Z_WIDTH) + 2
 z_mins = [round(Z_MIN+Z_WIDTH*n,4) for n in np.arange(num_bins)]
 z_mins.append(round(Z_MAX,4))
@@ -94,7 +96,7 @@ for num_bin in np.arange(num_bins):
     hdul = fits.HDUList([hdu])
 
     #Create the table and append it to hdul
-    table_fields = [x for x in data.keys() if x not in image_fields]
+    table_fields = [x for x in data.keys() if x not in IMAGE_FIELDS]
     columns = []
     for key in table_fields:
         if type(data[key][0]) is str:
@@ -112,7 +114,7 @@ for num_bin in np.arange(num_bins):
     sys.stdout.flush()
 
     #Create the images and append them to hdul
-    for key in image_fields:
+    for key in IMAGE_FIELDS:
         hdu = fits.ImageHDU(data[key], name=key)
         hdul.append(hdu)
         print 'Created image for ' + key + ' and bin ' + bin_label

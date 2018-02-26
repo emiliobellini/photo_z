@@ -1,3 +1,5 @@
 .bashrc
 python.sh
-python-*.out
+*.out
+.ipynb_checkpoints
+*.pyc

@@ -6,52 +6,8 @@ matplotlib.use('Agg')
 import pylab as plt
 from astropy.io import fits
 from astropy.table import Table, vstack
+import variables as vrs
 
-
-
-#Photo-z Bins
-z_mins = [0.15,0.29,0.43,0.57,0.70,0.90,1.10,1.30]
-z_bins = {}
-for n in np.arange(len(z_mins)-1):
-    key = str(z_mins[n])+'<z_B<'+str(z_mins[n+1])
-    z_bins[key] = [z_mins[n], z_mins[n+1]]
-
-
-#Criteria used to select the data
-def select_data(data, z_min, z_max):
-
-    sel = data['Z_B']>=z_min
-    sel = (data['Z_B']<z_max)*sel
-    sel = (data['MASK']<=1)*sel
-    sel = ([x in good_fit_patterns for x in data['field']])*sel
-
-    return sel
-
-
-#Good fit patterns
-good_fit_patterns = ['W1m0m0', 'W1m0m3', 'W1m0m4', 'W1m0p1', 'W1m0p2', 'W1m0p3', 'W1m1m0',
-                     'W1m1m2', 'W1m1m3', 'W1m1m4', 'W1m1p3', 'W1m2m1', 'W1m2m2', 'W1m2m3',
-                     'W1m2p1', 'W1m2p2', 'W1m3m0', 'W1m3m2', 'W1m3m4', 'W1m3p1', 'W1m3p3',
-                     'W1m4m0', 'W1m4m1', 'W1m4m3', 'W1m4m4', 'W1m4p1', 'W1p1m1', 'W1p1m2',
-                     'W1p1m3', 'W1p1m4', 'W1p1p1', 'W1p1p2', 'W1p1p3', 'W1p2m0', 'W1p2m2',
-                     'W1p2m3', 'W1p2m4', 'W1p2p1', 'W1p2p2', 'W1p2p3', 'W1p3m1', 'W1p3m2',
-                     'W1p3m3', 'W1p3m4', 'W1p3p1', 'W1p3p2', 'W1p3p3', 'W1p4m0', 'W1p4m1',
-                     'W1p4m2', 'W1p4m3', 'W1p4m4', 'W1p4p1', 'W1p4p2', 'W1p4p3',
-
-                     'W2m0m0', 'W2m0m1', 'W2m0p1', 'W2m0p2', 'W2m1m0', 'W2m1m1', 'W2m1p1',
-                     'W2m1p3', 'W2p1m0', 'W2p1p1', 'W2p1p2', 'W2p2m0', 'W2p2m1', 'W2p2p1',
-                     'W2p2p2', 'W2p3m0', 'W2p3m1', 'W2p3p1', 'W2p3p3',
-
-                     'W3m0m1', 'W3m0m2', 'W3m0m3', 'W3m0p2', 'W3m0p3', 'W3m1m0', 'W3m1m2',
-                     'W3m1m3', 'W3m1p1', 'W3m1p2', 'W3m1p3', 'W3m2m1', 'W3m2m2', 'W3m2m3',
-                     'W3m2p1', 'W3m2p2', 'W3m3m0', 'W3m3m1', 'W3m3m2', 'W3m3m3', 'W3m3p1',
-                     'W3m3p2', 'W3p1m0', 'W3p1m1', 'W3p1m2', 'W3p1m3', 'W3p1p2', 'W3p1p3',
-                     'W3p2m0', 'W3p2m3', 'W3p2p3', 'W3p3m1', 'W3p3m3', 'W3p3p1', 'W3p3p2',
-                     'W3p3p3',
-
-                     'W4m0m2', 'W4m0p1', 'W4m1m0', 'W4m1m1', 'W4m1m2', 'W4m1p1', 'W4m2m0',
-                     'W4m2p1', 'W4m2p3', 'W4m3m0', 'W4m3p1', 'W4m3p2', 'W4m3p3', 'W4p1m0',
-                     'W4p1m1', 'W4p1m2', 'W4p2m0', 'W4p2m1', 'W4p2m2']
 
 
 # Parse the given arguments
@@ -88,7 +44,7 @@ image = fits.open(paths['input'])['PZ_full'].data
 #Print effective densities for each field
 #TODO: insert correct values for A_eff
 if not args.skip_info:
-    sel_bins = select_data(table, z_mins[0], z_mins[-1])
+    sel_bins = vrs.select_data(table, vrs.Z_MIN, vrs.Z_MAX)
     w, w2 = {'TOT': 0.}, {'TOT': 0.}
     n_eff = {}
     n_gal = {'TOT': 0}
@@ -114,13 +70,13 @@ if not args.skip_info:
 
 #Get arrays with selected data for each bin
 sel_bins = {}
-for key in z_bins.keys():
-    sel_bins[key] = select_data(table, z_bins[key][0], z_bins[key][1])
+for key in vrs.Z_BINS.keys():
+    sel_bins[key] = vrs.select_data(table, vrs.Z_BINS[key][0], vrs.Z_BINS[key][1])
 
 
 #Generate binned Photo-z
 
-#Step size
+#Step size (provided by CFHTlens to generate the Photo-z arrays)
 z_step = 0.05
 photoz_x = (np.arange(len(image[0]))+1./2.)*z_step
 
@@ -131,7 +87,7 @@ sys.stdout.flush()
 
 #Calculate binned Photo-z
 photoz_y = {}
-for key in z_bins.keys():
+for key in vrs.Z_BINS.keys():
     w_tot = table['weight'][sel_bins[key]].sum()
     photoz_y[key] = np.dot(table['weight'][sel_bins[key]].data, image[sel_bins[key]])/w_tot
     print 'Calculated Photo-z for bin ' + key
@@ -146,7 +102,7 @@ hdul = fits.HDUList([hdu])
 
 #Create a table with all the galaxies for each bin
 del hdu
-for key in sorted(z_bins.keys()):
+for key in sorted(vrs.Z_BINS.keys()):
     hdu_part = table[sel_bins[key]]
     new_col = np.full(len(hdu_part),key)
     hdu_part['BIN'] = new_col
@@ -160,7 +116,7 @@ print 'Created table with data'
 sys.stdout.flush()
 
 #Create image with redshift bins
-hdu = fits.ImageHDU([z_bins[x] for x in sorted(z_bins.keys())], name='Z_bins')
+hdu = fits.ImageHDU([vrs.Z_BINS[x] for x in sorted(vrs.Z_BINS.keys())], name='Z_bins')
 hdul.append(hdu)
 
 #Create table with binned Photo-z
@@ -186,7 +142,7 @@ sys.stdout.flush()
 
 
 #Generate plot
-for key in sorted(z_bins.keys()):
+for key in sorted(vrs.Z_BINS.keys()):
     plt.plot(photoz_x, photoz_y[key], label = key)
 plt.legend(loc="best", frameon = False, fontsize=10)
 if not args.skip_info:
