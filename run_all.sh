@@ -6,7 +6,7 @@ echo "Finished 1_tsv_to_fits"
 /usr/local/shared/python/2.7.6-gcc/bin/python 2_unify_fits.py -d ../data/data_cfhtlens__
 echo "Finished 2_unify_fits"
 
-/usr/local/shared/python/2.7.6-gcc/bin/python 3_binned_photo-z.py ../data/data_cfhtlens.fits
+/usr/local/shared/python/2.7.6-gcc/bin/python 3_binned_data.py ../data/data_cfhtlens.fits
 echo "Finished 3_binned_photo-z"
 
 /usr/local/shared/python/2.7.6-gcc/bin/python 4_bins_to_cl.py -s ../data/data_cfhtlens_bins.fits
