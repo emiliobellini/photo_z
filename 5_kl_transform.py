@@ -79,7 +79,8 @@ else:
 #Update input file with an image containing Cl's after KL and the transformation matrix
 #Create image for Cl's
 hdu = {}
-hdu['Cls_KL'] = fits.ImageHDU(angular_cl, name='Cls_KL')
+hdu['NOISE'] = fits.ImageHDU(N, name='NOISE')
+hdu['ClS_KL'] = fits.ImageHDU(angular_cl, name='ClS_KL')
 hdu['KL_T'] = fits.ImageHDU(E, name='KL_T')
 with fits.open(paths['input'], mode='update') as hdul:
     for im in hdu.keys():
