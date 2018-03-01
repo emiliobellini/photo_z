@@ -4,9 +4,6 @@ from astropy.io import fits
 from astropy.table import Table, vstack
 import numpy as np
 import pyccl as ccl
-import matplotlib
-matplotlib.use('Agg')
-import pylab as plt
 import variables as vrs
 
 
@@ -14,57 +11,37 @@ import variables as vrs
 # Parse the given arguments
 parser = argparse.ArgumentParser("Generate Cl's from binned Photo-z")
 parser.add_argument("input_file", type=str, help="Input FITS file")
-parser.add_argument("--output_plot", "-p", type=str, default = None, help="Output plot")
-parser.add_argument("--skip_plots", "-s", help="Skip plots", action="store_true")
 args = parser.parse_args()
 
 
 #Define absolute paths to input and output files
 paths = {}
 paths['input'] = os.path.abspath(args.input_file)
-if args.output_plot:
-    paths['output_plot'] = os.path.abspath(args.output_plot)
-else:
-    paths['output_plot'] = os.path.splitext(paths['input'])[0]
-    paths['output_plot'] = paths['output_plot'] + '.pdf'
 
 
 #Open files and store datas
-#Read table
-table = Table.read(paths['input'], hdu='Photo_z')
-
-
-#Extract binned photo-z
-z = table['z'].data
-keys = table.colnames
-del keys[0]
-keys = sorted(keys)
-pz = {}
-for key in keys:
-    pz[key] = table[key].data
-print 'Read data from ' + os.path.relpath(paths['input'])
-sys.stdout.flush()
+with fits.open(paths['input']) as fn:
+    z = fn['Photoz_z'].data
+    pz = fn['Photoz_p'].data
 
 
 #Calculate cosmology
-cosmo = ccl.Cosmology(Omega_c=vrs.Omega_c, Omega_b=vrs.Omega_b, h=vrs.h, A_s=vrs.A_s, n_s=vrs.n_s)
+cosmo = ccl.Cosmology(Omega_c=vrs.Omega_c, Omega_b=vrs.Omega_b, h=vrs.h, sigma8=vrs.sigma8, n_s=vrs.n_s)#A_s=vrs.A_s
 print 'Calculated cosmology'
 sys.stdout.flush()
 
 #Calculate tracers
-lens = {}
-for key in keys:
-    lens[key] = ccl.ClTracerLensing(cosmo, False, z=z, n=pz[key])
+lens = np.array([ccl.ClTracerLensing(cosmo, False, z=z.astype(np.float64), n=pz[x].astype(np.float64)) for x in range(len(pz))])
 print 'Calculated tracers'
 sys.stdout.flush()
 
 #Calculate Cl's
-angular_cl = np.zeros((len(keys), len(keys), len(vrs.L_RANGE)))
-for count1 in range(len(keys)):
-    for count2 in range(len(keys)):
-        lens1 = lens[keys[count1]]
-        lens2 = lens[keys[count2]]
-        angular_cl[count1][count2] = ccl.angular_cl(cosmo, lens1, lens2, vrs.L_RANGE)
+angular_cl = np.zeros((len(pz), len(pz), vrs.L_MAX+1))
+for count1 in range(len(pz)):
+    for count2 in range(len(pz)):
+        lens1 = lens[count1]
+        lens2 = lens[count2]
+        angular_cl[count1][count2] = ccl.angular_cl(cosmo, lens1, lens2, range(vrs.L_MAX+1))
 angular_cl = np.swapaxes(angular_cl,2,0)
 print 'Calculated Cl\'s'
 sys.stdout.flush()
@@ -87,44 +64,5 @@ with fits.open(paths['input'], mode='update') as hdul:
 print 'Updated input file at ' + os.path.relpath(paths['input'])
 sys.stdout.flush()
 
-
-#Plots
-if not args.skip_plots:
-    #Plot diagonal Cl's
-    for count in range(len(keys)):
-        y = [angular_cl[x][count][count] for x in vrs.L_RANGE]
-        plt.plot(vrs.L_RANGE, y, label=r'$'+keys[count]+'$')
-    plt.xlabel(r'$\ell$')
-    plt.ylabel(r'$C^\ell_{ii}$')
-    plt.title(r'Auto-correlations')
-    plt.xscale('log')
-    plt.yscale('log')
-    plt.xlim(vrs.L_MIN, vrs.L_MAX)
-    plt.legend()
-    plot_path = os.path.splitext(paths['output_plot'])
-    plot_path = plot_path[0]+'_cls_ii'+plot_path[1]
-    plt.savefig(plot_path)
-    plt.close()
-    print 'Saved auto-correlation plot at ' + os.path.relpath(plot_path)
-    sys.stdout.flush()
-
-    #Plot off-diagonal Cl's (a plot for each row of the matrix)
-    for count1 in range(len(keys)):
-        for count2 in range(len(keys)):
-            y = [angular_cl[x][count1][count2] for x in vrs.L_RANGE]
-            plt.plot(vrs.L_RANGE, y, label=r'$'+keys[count2]+'$')
-        plt.xlabel(r'$\ell$')
-        plt.ylabel(r'$C^\ell_{ij}$')
-        plt.title(r'Cross-correlation with $'+keys[count1]+'$')
-        plt.xscale('log')
-        plt.yscale('log')
-        plt.xlim(vrs.L_MIN, vrs.L_MAX)
-        plt.legend()
-        plot_path = os.path.splitext(paths['output_plot'])
-        plot_path = plot_path[0]+'_cls_ij_'+keys[count1]+plot_path[1]
-        plt.savefig(plot_path)
-        plt.close()
-        print 'Saved cross-correlation plot for bin ' + keys[count1] + ' at ' + os.path.relpath(plot_path)
-        sys.stdout.flush()
 
 print 'Success!!'
