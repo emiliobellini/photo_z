@@ -23,6 +23,10 @@ paths['input'] = os.path.abspath(args.input_file)
 with fits.open(paths['input']) as fn:
     z = fn['Photoz_z'].data
     pz = fn['Photoz_p'].data
+#Check that the input quantities have the right dimensions
+if (pz.shape[1] != len(z)):
+    raise IOError('Input arrays have disagreeing shapes. z.shape = ' + str(z.shape) +
+        '. pz.shape = ' + str(pz.shape) + '.')
 
 
 #Calculate cosmology

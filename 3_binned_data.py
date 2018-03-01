@@ -41,6 +41,10 @@ CFHTlens_A_eff['TOT'] = sum(CFHTlens_A_eff.values())
 table = Table.read(paths['input'])
 #Read image
 image = fits.open(paths['input'])['PZ_full'].data
+#Check that the input quantities have the right dimensions
+if (image.shape[0] != len(table)):
+    raise IOError('Table and Image have different number of rows. table.rows = ' + str(len(table)) +
+        '. image.rows = ' + str(image.shape[0]) + '.')
 
 
 #Create redshift bins
