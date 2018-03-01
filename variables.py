@@ -1,3 +1,5 @@
+import numpy as np
+
 #List and values of all the variables and functions used in the code
 
 
@@ -7,28 +9,6 @@ Z_BINS = [0.15,0.29,0.43,0.57,0.70,0.90,1.10,1.30]
 
 #CFHTlens specifications
 CFHTlens_dZ = 0.05
-CFHTlens_A_eff = {}
-CFHTlens_A_eff['W1'] = (60.**2)*sum([0.76, 0.89, 0.85, 0.72, 0.79, 0.78, 0.85,
-                                     0.81, 0.84, 0.89, 0.83, 0.84, 0.78, 0.79,
-                                     0.83, 0.87, 0.87, 0.79, 0.84, 0.84, 0.83,
-                                     0.82, 0.86, 0.82, 0.84, 0.80, 0.79, 0.83,
-                                     0.80, 0.85, 0.75, 0.85, 0.81, 0.83, 0.79,
-                                     0.85, 0.83, 0.76, 0.78, 0.82, 0.75, 0.90,
-                                     0.81, 0.85, 0.84, 0.82, 0.83, 0.76, 0.76,
-                                     0.86, 0.87, 0.85, 0.79, 0.83, 0.80]) #arcmin^2
-CFHTlens_A_eff['W2'] = (60.**2)*sum([0.65, 0.63, 0.63, 0.58, 0.68, 0.61, 0.62,
-                                     0.70, 0.72, 0.62, 0.66, 0.63, 0.65, 0.62,
-                                     0.63, 0.58, 0.72, 0.70, 0.76]) #arcmin^2
-CFHTlens_A_eff['W3'] = (60.**2)*sum([0.79, 0.79, 0.68, 0.72, 0.75, 0.78, 0.81,
-                                     0.79, 0.84, 0.76, 0.81, 0.77, 0.81, 0.77,
-                                     0.79, 0.66, 0.77, 0.75, 0.80, 0.79, 0.78,
-                                     0.74, 0.79, 0.71, 0.79, 0.69, 0.76, 0.79,
-                                     0.82, 0.84, 0.76, 0.79, 0.76, 0.75, 0.80,
-                                     0.75]) #arcmin^2
-CFHTlens_A_eff['W4'] = (60.**2)*sum([0.73, 0.76, 0.72, 0.70, 0.77, 0.77, 0.61,
-                                     0.62, 0.71, 0.64, 0.66, 0.67, 0.72, 0.74,
-                                     0.73, 0.72, 0.71, 0.65, 0.73]) #arcmin^2
-CFHTlens_A_eff['TOT'] = sum(CFHTlens_A_eff.values()) #arcmin^2
 
 
 #Define ell_min and ell_max
@@ -55,7 +35,7 @@ def select_data(data, z_min, z_max):
     sel = data['Z_B']>=z_min
     sel = (data['Z_B']<z_max)*sel
     sel = (data['MASK']<=1)*sel
-    sel = ([x in good_fit_patterns for x in data['field']])*sel
+    sel = np.array([x in good_fit_patterns for x in data['field']])*sel
 
     return sel
 

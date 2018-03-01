@@ -25,6 +25,17 @@ else:
     paths['output_file'] = paths['output_file'] + '_bins.fits'
 
 
+#Calculate effective areas (A_eff) for CFHTlens
+CFHTlens_A_eff = {}
+sub_areas = np.loadtxt(os.path.abspath('./effarea_cfhtlens.dat'), dtype='str', unpack=True)
+sub_areas[0] = np.array([x.replace('CL','') for x in sub_areas[0]])
+for field in ['W1', 'W2', 'W3', 'W4']:
+    sel = np.array([x in vrs.good_fit_patterns for x in sub_areas[0]])
+    sel = np.array([field in x for x in sub_areas[0]])*sel
+    CFHTlens_A_eff[field] = sub_areas[1][sel].astype(np.float64).sum()
+CFHTlens_A_eff['TOT'] = sum(CFHTlens_A_eff.values())
+
+
 #Open files and store datas
 #Read table
 table = Table.read(paths['input'])
@@ -47,18 +58,18 @@ if not args.skip_info:
         if field != 'TOT':
             w = np.array([x['weight'] for x in table[sel_bins] if field in x['field']])
             n_gal[field] = len(w)
-            n_eff[field] = (w.sum())**2./(w**2.).sum()/vrs.CFHTlens_A_eff[field]
+            n_eff[field] = (w.sum())**2./(w**2.).sum()/CFHTlens_A_eff[field]
             n_gal['TOT'] = n_gal['TOT'] + n_gal[field]
             w_tot = w_tot + w.sum()
             w2_tot = w2_tot + (w**2.).sum()
-        n_eff['TOT'] = w_tot**2./w2_tot/vrs.CFHTlens_A_eff['TOT']
+        n_eff['TOT'] = w_tot**2./w2_tot/CFHTlens_A_eff['TOT']
         print '----> Survey region ' + field + ':'
         sys.stdout.flush()
         print '--------> n_galaxies = ' + '{:2d}'.format(n_gal[field])
         sys.stdout.flush()
         print '--------> n_eff = ' + '{:2.2f}'.format(n_eff[field]) + ' arcmin^-2'
         sys.stdout.flush()
-        print '--------> A_eff = ' + '{:2.2f}'.format(vrs.CFHTlens_A_eff[field]/(60.**2)) + ' deg^2'
+        print '--------> A_eff = ' + '{:2.2f}'.format(CFHTlens_A_eff[field]/(60.**2)) + ' deg^2'
         sys.stdout.flush()
 
 
@@ -87,7 +98,7 @@ for n in range(len(z_bins)):
     e1 = table['e1'][sel_bins[n]]/(1+m)
     e2 = table['e2'][sel_bins[n]]-table['c2'][sel_bins[n]]/(1+m)
     photoz_y[n] = np.dot(table['weight'][sel_bins[n]].data, image[sel_bins[n]])/w_sum
-    n_eff[n] = w_sum**2/w2_sum/vrs.CFHTlens_A_eff['TOT']
+    n_eff[n] = w_sum**2/w2_sum/CFHTlens_A_eff['TOT']
     sigma_g[n] = np.dot(table['weight'][sel_bins[n]].data**2., e1**2. + e2**2.)/w2_sum
     sigma_g[n] = sigma_g[n]**0.5
     print 'Calculated Photo-z, n_eff and sigma_g for bin ' + str(n+1)
