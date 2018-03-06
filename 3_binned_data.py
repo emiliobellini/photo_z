@@ -98,12 +98,13 @@ sigma_g = np.zeros(len(z_bins))
 for n in range(len(z_bins)):
     w_sum = table['weight'][sel_bins[n]].sum()
     w2_sum = (table['weight'][sel_bins[n]]**2.).sum()
+    #TODO: Correct ellipticities
     m = np.average(table['e1'][sel_bins[n]])
     e1 = table['e1'][sel_bins[n]]/(1+m)
     e2 = table['e2'][sel_bins[n]]-table['c2'][sel_bins[n]]/(1+m)
     photoz_y[n] = np.dot(table['weight'][sel_bins[n]].data, image[sel_bins[n]])/w_sum
     n_eff[n] = w_sum**2/w2_sum/CFHTlens_A_eff['TOT']
-    sigma_g[n] = np.dot(table['weight'][sel_bins[n]].data**2., e1**2. + e2**2.)/w2_sum
+    sigma_g[n] = np.dot(table['weight'][sel_bins[n]].data**2., (e1**2. + e2**2.)/2.)/w2_sum
     sigma_g[n] = sigma_g[n]**0.5
     print 'Calculated Photo-z, n_eff and sigma_g for bin ' + str(n+1)
     sys.stdout.flush()
