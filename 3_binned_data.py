@@ -95,6 +95,7 @@ sys.stdout.flush()
 photoz_y = np.zeros((len(z_bins),len(photoz_x)))
 n_eff = np.zeros(len(z_bins))
 sigma_g = np.zeros(len(z_bins))
+n_gal = np.zeros(len(z_bins), dtype=int)
 for n in range(len(z_bins)):
     w_sum = table['weight'][sel_bins[n]].sum()
     w2_sum = (table['weight'][sel_bins[n]]**2.).sum()
@@ -106,9 +107,12 @@ for n in range(len(z_bins)):
     n_eff[n] = w_sum**2/w2_sum/CFHTlens_A_eff['TOT']
     sigma_g[n] = np.dot(table['weight'][sel_bins[n]].data**2., (e1**2. + e2**2.)/2.)/w2_sum
     sigma_g[n] = sigma_g[n]**0.5
+    n_gal[n] = len(e1)
     print 'Calculated Photo-z, n_eff and sigma_g for bin ' + str(n+1)
     sys.stdout.flush()
-print '----> n_eff for each bin is ' + str(['{:2.2e}'.format(i) for i in n_eff])
+print '----> n_galaxies for each bin is ' + str(['{:2d}'.format(i) for i in n_gal])
+sys.stdout.flush()
+print '----> n_eff for each bin is ' + str(['{:2.3f}'.format(i) for i in n_eff])
 sys.stdout.flush()
 print '----> sigma_g for each bin is ' + str(['{:0.3f}'.format(i) for i in sigma_g])
 sys.stdout.flush()
@@ -119,6 +123,20 @@ sys.stdout.flush()
 #Create the first empty image
 hdu = fits.PrimaryHDU()
 hdul = fits.HDUList([hdu])
+
+#Create a table with all the galaxies for each bin
+del hdu
+for n in range(len(z_bins)):
+    hdu_part = table[sel_bins[n]]
+    hdu_part['BIN'] = n
+    try:
+        hdu = vstack([hdu, hdu_part], join_type='exact')
+    except NameError:
+        hdu = hdu_part
+hdu = fits.table_to_hdu(hdu)
+hdul.append(hdu)
+print 'Created table with data'
+sys.stdout.flush()
 
 #Create image with redshift bins
 hdu = fits.ImageHDU(z_bins, name='Z_bins')
