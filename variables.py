@@ -16,13 +16,12 @@ L_MIN = 2
 L_MAX = 2000
 
 
-#Cosmology
-Omega_c=0.27
-Omega_b=0.045
-h=0.67
-sigma8=0.8
-#A_s=2.215e-9
-n_s=0.96
+#Cosmology mean from MIDRUN Joudaki et al. 2016
+Omega_c=0.216256771
+Omega_b=0.045841549
+h=0.711272
+sigma8=0.802611
+n_s=1.12101
 
 
 #Define Machine Precision Threshold, above which a warning is raised
@@ -34,7 +33,9 @@ def select_data(data, z_min, z_max):
 
     sel = data['Z_B']>=z_min
     sel = (data['Z_B']<z_max)*sel
-    sel = (data['MASK']<=1)*sel
+    sel = (data['MASK']==0)*sel
+    sel = (data['weight']>0.)*sel
+    sel = (data['star_flag']==0)*sel
     sel = np.array([x in good_fit_patterns for x in data['field']])*sel
 
     return sel
