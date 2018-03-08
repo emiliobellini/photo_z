@@ -60,7 +60,7 @@ if not args.skip_info:
     sel_bins = vrs.select_data(table, np.min(z_bins), np.max(z_bins))
     for field in ['W1', 'W2', 'W3', 'W4', 'TOT']:
         if field != 'TOT':
-            w = np.array([x['weight'] for x in table[sel_bins] if field in x['field']])
+            w = np.array([x['weight'] for x in table[sel_bins] if field in x['id']])
             n_gal[field] = len(w)
             n_eff[field] = (w.sum())**2./(w**2.).sum()/CFHTlens_A_eff[field]
             n_gal['TOT'] = n_gal['TOT'] + n_gal[field]

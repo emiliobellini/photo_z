@@ -36,7 +36,7 @@ def select_data(data, z_min, z_max):
     sel = (data['MASK']==0)*sel
     sel = (data['weight']>0.)*sel
     sel = (data['star_flag']==0)*sel
-    sel = np.array([x in good_fit_patterns for x in data['field']])*sel
+    sel = np.array([x[:6] in good_fit_patterns for x in data['id']])*sel
 
     return sel
 
