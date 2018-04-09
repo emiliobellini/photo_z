@@ -76,12 +76,23 @@ else:
     sys.stdout.flush()
 
 
+#Average the kl transform to be l independent
+E_avg = np.zeros((len(E[0]),len(E[0])))
+den = np.array([(2.*x+1) for x in range(2,len(E))]).sum()
+for n in range(len(E[0])):
+    for m in range(len(E[0])):
+        num = np.array([(2.*x+1)*E[:,n][:,m][x] for x in range(2,len(E))]).sum()
+        E_avg[n][m] = num/den
+
+
+
 #Update input file with an image containing Cl's after KL and the transformation matrix
 #Create image for Cl's
 hdu = {}
 hdu['NOISE'] = fits.ImageHDU(N, name='NOISE')
 hdu['ClS_KL'] = fits.ImageHDU(angular_cl, name='ClS_KL')
 hdu['KL_T'] = fits.ImageHDU(E, name='KL_T')
+hdu['KL_T_AVG'] = fits.ImageHDU(E_avg, name='KL_T_AVG')
 with fits.open(paths['input'], mode='update') as hdul:
     for im in hdu.keys():
         try:
