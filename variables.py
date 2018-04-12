@@ -65,3 +65,8 @@ good_fit_patterns = ['W1m0m0', 'W1m0m3', 'W1m0m4', 'W1m0p1', 'W1m0p2', 'W1m0p3',
                      'W4m0m2', 'W4m0p1', 'W4m1m0', 'W4m1m1', 'W4m1m2', 'W4m1p1', 'W4m2m0',
                      'W4m2p1', 'W4m2p3', 'W4m3m0', 'W4m3p1', 'W4m3p2', 'W4m3p3', 'W4p1m0',
                      'W4p1m1', 'W4p1m2', 'W4p2m0', 'W4p2m1', 'W4p2m2']
+
+#Angles of the correlation functions
+THETA_ARCMIN = [1.41, 2.79, 5.53, 11.0, 21.7, 43.0, 85.2]
+NEGLECT_THETA_PLUS = [6]
+NEGLECT_THETA_MINUS = [0, 1, 2]

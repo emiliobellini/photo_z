@@ -86,8 +86,7 @@ for n in range(len(E[0])):
 
 
 
-#Update input file with an image containing Cl's after KL and the transformation matrix
-#Create image for Cl's
+#Update input file
 hdu = {}
 hdu['NOISE'] = fits.ImageHDU(N, name='NOISE')
 hdu['ClS_KL'] = fits.ImageHDU(angular_cl, name='ClS_KL')

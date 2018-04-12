@@ -43,9 +43,7 @@ sys.stdout.flush()
 angular_cl = np.zeros((len(pz), len(pz), vrs.L_MAX+1))
 for count1 in range(len(pz)):
     for count2 in range(len(pz)):
-        lens1 = lens[count1]
-        lens2 = lens[count2]
-        angular_cl[count1][count2] = ccl.angular_cl(cosmo, lens1, lens2, range(vrs.L_MAX+1))
+        angular_cl[count1][count2] = ccl.angular_cl(cosmo, lens[count1], lens[count2], range(vrs.L_MAX+1))
 angular_cl = np.swapaxes(angular_cl,2,0)
 print 'Calculated Cl\'s'
 sys.stdout.flush()
