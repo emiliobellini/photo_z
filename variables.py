@@ -17,12 +17,16 @@ L_MAX = 2000
 
 
 #Cosmology mean from MIDRUN Joudaki et al. 2016
-Omega_c=0.216256771
-Omega_b=0.045841549
-h=0.711272
-sigma8=0.802611
-n_s=1.12101
+h=6.1197750E-01
+Omega_c=1.1651890E-01/h**2.
+Omega_b=3.2744850E-02/h**2.
+sigma8=6.0773680E-01
+n_s=1.2577130E+00
 
+#correlation function and covariance matrix files, plus number of simulations used
+CORR_FILE = './xipm.dat'
+COVMAT_FILE = './xipm_cov.dat'
+N_SIMULATIONS = 1988
 
 #Define Machine Precision Threshold, above which a warning is raised
 MP_THRESHOLD = 1.e-14
