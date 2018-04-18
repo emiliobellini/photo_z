@@ -229,6 +229,7 @@ for count in range(n_bins):
 #Update input file
 hdu = {}
 hdu['theta'] = fits.ImageHDU(theta, name='theta')
+hdu['mask_theta'] = fits.ImageHDU(mask.astype(int), name='mask_theta')
 hdu['xi_th'] = fits.ImageHDU(xi_th, name='xi_th')
 hdu['xi_obs'] = fits.ImageHDU(xi_obs, name='xi_obs')
 hdu['cov_mat'] = fits.ImageHDU(cov_mat, name='cov_mat')
