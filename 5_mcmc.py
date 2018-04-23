@@ -254,7 +254,10 @@ def lnprior(var, full=cosmo_pars, mask=mask_vars):
 #Define likelihood
 def lnlike(var, obs=xi_obs, icov=inv_cov_mat):
     #Get theory
-    xi_th = get_theory(var)
+    try:
+        xi_th = get_theory(var)
+    except:
+        return -np.inf
     #Get chi2
     chi2 = (obs-xi_th).dot(icov).dot(obs-xi_th)
     return -chi2
