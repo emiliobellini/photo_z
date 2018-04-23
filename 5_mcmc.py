@@ -9,28 +9,32 @@ import emcee
 
 # Parse the given arguments
 parser = argparse.ArgumentParser("Calculate the correlation function, apply the KL transform and calculate the chi^2")
-parser.add_argument("input_file", type=str, help="Input parameters file")
-parser.add_argument("data_file", type=str, help="Input data file")
-parser.add_argument("--output_dir", "-o", type=str, default = None, help="Output dir")
+parser.add_argument("--input_file", "-i", type=str, default = None, help="Input parameters file")
+parser.add_argument("--data_file", "-d", type=str, default = None, help="Input data file")
+parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
+parser.add_argument("--kl", "-kl", help="Use the KL transform istead of full data", action="store_true")
 args = parser.parse_args()
+if not(args.input_file):
+    raise IOError('You should specify an input file!')
+if not(args.data_file):
+    raise IOError('You should specify a data file!')
+if not(args.output_file):
+    raise IOError('You should specify an output file')
 
 
 #Define absolute paths to input and output files
 paths = {}
 paths['input'] = os.path.abspath(args.input_file)
 paths['data'] = os.path.abspath(args.data_file)
-if args.output_dir:
-    paths['output_dir'] = os.path.abspath(args.output_dir)
-else:
-    paths['output_dir'] = os.path.splitext(paths['input'])[0] + '.dat'
+paths['output'] = os.path.abspath(args.output_file)
 
 
-#Default parameters [h, Omega_c, Omega_b, sigma8, n_s]
+#Default parameters [h, Omega_c, Omega_b, A_s, n_s]
 cosmo_pars = np.array([
     [None, 0.61197750, None],
     [None, 0.31111823, None],
     [None, 0.08743234, None],
-    [None, 0.60773680, None],
+    [None, 1.18655e-9, None],
     [None, 1.25771300, None]
     ])
 n_kl = 3
@@ -45,25 +49,44 @@ n_sim = 1988
 with fits.open(paths['data']) as fn:
     z = fn['photoz_z'].data
     pz = fn['photoz_p'].data
-    kl_t = fn['kl_t_avg'].data
     theta = fn['theta'].data
-    xi_obs = fn['xi_obs_kl'].data
-    cov_mat = fn['cov_mat_kl'].data
     mask_theta = fn['mask_theta'].data.astype(bool)
+    if args.kl:
+        kl_t = fn['kl_t_avg'].data
+        xi_obs = fn['xi_obs_kl'].data
+        cov_mat = fn['cov_mat_kl'].data
+    else:
+        xi_obs = fn['xi_obs'].data
+        cov_mat = fn['cov_mat'].data
 n_bins = len(pz)
 n_theta = len(theta)
 
 
 #Reshape correlation function and covariance matrix
-xi_obs = xi_obs.reshape((2*n_theta,n_bins))
-xi_obs = xi_obs[mask_theta]
-xi_obs = xi_obs[:,:n_kl].flatten()
-cov_mat = cov_mat.reshape((2*n_theta,n_bins,2*n_theta,n_bins))
-cov_mat = cov_mat[:,:,mask_theta]
-cov_mat = cov_mat[mask_theta]
-cov_mat = cov_mat[:,:n_kl,:,:n_kl]
-cov_mat = cov_mat.reshape((len(mask_theta[mask_theta])*n_kl,len(mask_theta[mask_theta])*n_kl))
-inv_cov_mat = (n_sim-len(mask_theta[mask_theta])*n_kl-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
+if args.kl:
+    n_data = len(mask_theta[mask_theta])*n_kl
+    xi_obs = xi_obs.reshape((2*n_theta,n_bins))
+    xi_obs = xi_obs[mask_theta]
+    xi_obs = xi_obs[:,:n_kl].flatten()
+    cov_mat = cov_mat.reshape((2*n_theta,n_bins,2*n_theta,n_bins))
+    cov_mat = cov_mat[:,:,mask_theta]
+    cov_mat = cov_mat[mask_theta]
+    cov_mat = cov_mat[:,:n_kl,:,:n_kl]
+    cov_mat = cov_mat.reshape((n_data,n_data))
+    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
+else:
+    n_data = len(mask_theta[mask_theta])*n_bins*(n_bins+1)/2
+    xi_obs = xi_obs.reshape((2*n_theta,n_bins,n_bins))
+    xi_obs = np.triu(xi_obs[mask_theta]).flatten()
+    xi_obs = xi_obs[xi_obs != 0]
+    cov_mat = cov_mat.reshape((2*n_theta,n_bins,n_bins,2*n_theta,n_bins,n_bins))
+    cov_mat = np.triu(cov_mat[:,:,:,mask_theta])
+    cov_mat = np.transpose(cov_mat,axes=[3,4,5,0,1,2])
+    cov_mat = np.triu(cov_mat[:,:,:,mask_theta]).flatten()
+    cov_mat = cov_mat[cov_mat != 0]
+    cov_mat = cov_mat.reshape((n_data,n_data))
+    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
+
 
 
 #Read input file
@@ -84,7 +107,7 @@ def listify(data):
 def read_line(file_path, par):
     with open(file_path) as fn:
         for line in fn:
-            if "=" in line and line[0] != '#':
+            if '=' in line and line[0] != '#':
                 line = re.sub('#.+', '', line)
                 name , value = line.split('=')
                 name = name.strip()
@@ -116,7 +139,7 @@ try:
 except ValueError:
     pass
 try:
-    cosmo_pars[3] = read_line(paths['input'], 'sigma8')
+    cosmo_pars[3] = read_line(paths['input'], 'A_s')
 except ValueError:
     pass
 try:
@@ -185,7 +208,7 @@ def get_theory(var):
     #Get cosmological parameters
     var_tot = get_cosmo(var)
     #Cosmology
-    cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1], Omega_b=var_tot[2], sigma8=var_tot[3], n_s=var_tot[4])
+    cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1], Omega_b=var_tot[2], A_s=var_tot[3], n_s=var_tot[4])
     #Tracers
     lens = np.array([ccl.ClTracerLensing(cosmo, False, z=z.astype(np.float64), n=pz[x].astype(np.float64)) for x in range(n_bins)])
     #Cl's
@@ -203,14 +226,20 @@ def get_theory(var):
                 xi_th[0,count1,count2,count3] = ccl.correlation(cosmo, ell, cls[:,count1,count2], theta[count3], corr_type='L+', method='FFTLog')
                 xi_th[1,count1,count2,count3] = ccl.correlation(cosmo, ell, cls[:,count1,count2], theta[count3], corr_type='L-', method='FFTLog')
     xi_th = np.transpose(xi_th,axes=[0,3,1,2])
-    #KL transform
-    xi_th = kl_t.dot(xi_th).dot(kl_t.T)
-    xi_th = np.transpose(xi_th, axes=[1, 2, 0, 3])
-    xi_th = np.diagonal(xi_th,  axis1=2, axis2=3)
-    xi_th = xi_th.reshape((2*n_theta,n_bins))
-    xi_th = xi_th[mask_theta,:n_kl].flatten()
+    #Reshape and eventually KL transform
+    if args.kl:
+        xi_th = kl_t.dot(xi_th).dot(kl_t.T)
+        xi_th = np.transpose(xi_th, axes=[1, 2, 0, 3])
+        xi_th = np.diagonal(xi_th,  axis1=2, axis2=3)
+        xi_th = xi_th.reshape((2*n_theta,n_bins))
+        xi_th = xi_th[mask_theta,:n_kl].flatten()
+    else:
+        xi_th = xi_th.reshape((2*n_theta,n_bins,n_bins))
+        xi_th = np.triu(xi_th[mask_theta]).flatten()
+        xi_th = xi_th[xi_th != 0]
 
     return xi_th
+
 
 
 #Define priors
@@ -243,25 +272,26 @@ def lnprob(var):
 sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, threads=n_threads)
 
 
-#Print usefule stuff
+#Print useful stuff
 print 'Starting the chains!'
 print 'Number of threads = ' + str(n_threads)
 print 'Number of steps = ' + str(n_steps)
 print 'Number of walkers = ' + str(n_walkers)
-print 'Number of KL modes = ' + str(n_kl)
 print 'Maximum ell = ' + str(n_ells-1)
+if args.kl:
+    print 'Number of KL modes = ' + str(n_kl)
 sys.stdout.flush()
 
 #Creat file
-f = open(paths['output_dir'], 'w')
+f = open(paths['output'], 'w')
 f.close()
 
 for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
     pos = result[0]
     prob = result[1]
-    f = open(paths['output_dir'], 'a')
+    f = open(paths['output'], 'a')
     for k in range(pos.shape[0]):
-        f.write(str(prob[k]) + "    " + "    ".join([str(x) for x in pos[k]]) + "\n")#"{0:4d} {1:s}\n".format(k, " ".join(position[k]))
+        f.write(' 1    ' + str(prob[k]) + '    ' + '    '.join([str(x) for x in pos[k]]) + '\n')
     f.close()
     if (count+1) % 10 == 0:
         print '----> Computed ' + str(count+1) + ' over a total of ' + str(n_steps) + ' steps'
