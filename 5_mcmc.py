@@ -257,6 +257,8 @@ def lnlike(var, obs=xi_obs, icov=inv_cov_mat):
     try:
         xi_th = get_theory(var)
     except:
+        print 'CCL failure with pars = ' + str(var)
+        sys.stdout.flush()
         return -np.inf
     #Get chi2
     chi2 = (obs-xi_th).dot(icov).dot(obs-xi_th)
