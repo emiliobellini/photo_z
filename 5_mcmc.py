@@ -13,7 +13,7 @@ parser.add_argument("--input_file", "-i", type=str, default = None, help="Input 
 parser.add_argument("--data_file", "-d", type=str, default = None, help="Input data file")
 parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
 parser.add_argument("--kl", "-kl", help="Use the KL transform istead of full data", action="store_true")
-parser.add_argument("--save", "-s", help="Save the output file incrementally", action="store_true")
+parser.add_argument("--restart", "-r", help="Restart the chains from the last point of the output file", action="store_true")
 args = parser.parse_args()
 if not(args.input_file):
     raise IOError('You should specify an input file!')
@@ -187,10 +187,6 @@ def get_random(pars, squeeze):
     return rnd_pars
 
 
-#Initial point
-vars_0 = np.array([get_random(cosmo_pars[mask_vars], 1.e1) for x in range(n_walkers)])
-
-
 #Construct full array of cosmological parameters
 def get_cosmo(var, full=cosmo_pars, mask=mask_vars):
     pars = np.zeros(len(mask))
@@ -248,8 +244,9 @@ def get_sigma_8(var):
     var_tot = get_cosmo(var)
     #Cosmology
     cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1]/var_tot[0]**2., Omega_b=var_tot[2]/var_tot[0]**2., A_s=(10.**(-10.))*np.exp(var_tot[3]), n_s=var_tot[4])
+    sigma8 = ccl.sigma8(cosmo)
 
-    return ccl.sigma8(cosmo)
+    return sigma8
 
 
 #Define priors
@@ -298,39 +295,30 @@ if args.kl:
 sys.stdout.flush()
 
 
-if args.save:
-    #Creat file
+if args.restart:
+    #Initial point from data
+    vars_0 = np.loadtxt(paths['output'],unpack=True)
+    vars_0 = vars_0[2:2+n_dim]
+    vars_0 = vars_0[:,-n_walkers:].T
+else:
+    #Initial point
+    vars_0 = np.array([get_random(cosmo_pars[mask_vars], 1.e1) for x in range(n_walkers)])
+    #Create file
     f = open(paths['output'], 'w')
     f.close()
 
-    for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
-        pos = result[0]
-        prob = result[1]
-        f = open(paths['output'], 'a')
-        for k in range(pos.shape[0]):
-            out = np.append(np.array([1., prob[k]]), pos[k])
-            out = np.append(out, get_sigma_8(pos[k]))
-            f.write('    '.join(['{0:.10e}'.format(x) for x in out]) + '\n')
-        f.close()
-        if (count+1) % 10 == 0:
-            print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
-            sys.stdout.flush()
-else:
-    for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps)):
-        try:
-            sigma8 = np.vstack((sigma8, np.array([[get_sigma_8(x) for x in result[0]]]).T))
-        except NameError:
-            sigma8 = np.array([[get_sigma_8(x) for x in result[0]]]).T
-        if (count+1) % 10 == 0:
-            print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
-            sys.stdout.flush()
-
-    pos = sampler.flatchain
-    prob = np.array([sampler.flatlnprobability]).T
-    out = np.hstack((np.ones(prob.shape), prob, pos, sigma8))
-    np.savetxt(paths['output'], out, fmt='%.10e', delimiter='    ')
-    print('Mean acceptance fraction: {0:.3f}'.format(np.mean(sampler.acceptance_fraction)))
-    sys.stdout.flush()
+for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
+    pos = result[0]
+    prob = result[1]
+    f = open(paths['output'], 'a')
+    for k in range(pos.shape[0]):
+        out = np.append(np.array([1., prob[k]]), pos[k])
+        out = np.append(out, get_sigma_8(pos[k]))
+        f.write('    '.join(['{0:.10e}'.format(x) for x in out]) + '\n')
+    f.close()
+    if (count+1) % 10 == 0:
+        print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
+        sys.stdout.flush()
 
 
 
