@@ -29,12 +29,12 @@ paths['data'] = os.path.abspath(args.data_file)
 paths['output'] = os.path.abspath(args.output_file)
 
 
-#Default parameters [h, Omega_c, Omega_b, A_s, n_s]
+#Default parameters [h, omega_c, omega_b, ln10_A_s, n_s]
 cosmo_pars = np.array([
     [None, 0.61197750, None],
-    [None, 0.31111823, None],
-    [None, 0.08743234, None],
-    [None, 1.18655e-9, None],
+    [None, 0.11651890, None],
+    [None, 0.03274485, None],
+    [None, 2.47363700, None],
     [None, 1.25771300, None]
     ])
 n_kl = 3
@@ -131,15 +131,15 @@ try:
 except ValueError:
     pass
 try:
-    cosmo_pars[1] = read_line(paths['input'], 'Omega_c')
+    cosmo_pars[1] = read_line(paths['input'], 'omega_c')
 except ValueError:
     pass
 try:
-    cosmo_pars[2] = read_line(paths['input'], 'Omega_b')
+    cosmo_pars[2] = read_line(paths['input'], 'omega_b')
 except ValueError:
     pass
 try:
-    cosmo_pars[3] = read_line(paths['input'], 'A_s')
+    cosmo_pars[3] = read_line(paths['input'], 'ln10_A_s')
 except ValueError:
     pass
 try:
@@ -208,7 +208,7 @@ def get_theory(var):
     #Get cosmological parameters
     var_tot = get_cosmo(var)
     #Cosmology
-    cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1], Omega_b=var_tot[2], A_s=var_tot[3], n_s=var_tot[4])
+    cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1]/var_tot[0]**2., Omega_b=var_tot[2]/var_tot[0]**2., A_s=(10.**(-10.))*np.exp(var_tot[3]), n_s=var_tot[4])
     #Tracers
     lens = np.array([ccl.ClTracerLensing(cosmo, False, z=z.astype(np.float64), n=pz[x].astype(np.float64)) for x in range(n_bins)])
     #Cl's
@@ -240,6 +240,15 @@ def get_theory(var):
 
     return xi_th
 
+
+#Get sigma_8
+def get_sigma_8(var):
+    #Get cosmological parameters
+    var_tot = get_cosmo(var)
+    #Cosmology
+    cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1]/var_tot[0]**2., Omega_b=var_tot[2]/var_tot[0]**2., A_s=(10.**(-10.))*np.exp(var_tot[3]), n_s=var_tot[4])
+
+    return ccl.sigma8(cosmo)
 
 
 #Define priors
@@ -296,7 +305,9 @@ for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storec
     prob = result[1]
     f = open(paths['output'], 'a')
     for k in range(pos.shape[0]):
-        f.write(' 1    ' + str(prob[k]) + '    ' + '    '.join([str(x) for x in pos[k]]) + '\n')
+        out = np.append(np.array([1., prob[k]]), pos[k])
+        out = np.append(out, get_sigma_8(pos[k]))
+        f.write('    '.join([str(x) for x in out]) + '\n')
     f.close()
     if (count+1) % 10 == 0:
         print '----> Computed ' + str(count+1) + ' over a total of ' + str(n_steps) + ' steps'
