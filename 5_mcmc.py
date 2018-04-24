@@ -13,6 +13,7 @@ parser.add_argument("--input_file", "-i", type=str, default = None, help="Input 
 parser.add_argument("--data_file", "-d", type=str, default = None, help="Input data file")
 parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
 parser.add_argument("--kl", "-kl", help="Use the KL transform istead of full data", action="store_true")
+parser.add_argument("--save", "-s", help="Save the output file incrementally", action="store_true")
 args = parser.parse_args()
 if not(args.input_file):
     raise IOError('You should specify an input file!')
@@ -296,22 +297,41 @@ if args.kl:
     print 'Number of KL modes = ' + str(n_kl)
 sys.stdout.flush()
 
-#Creat file
-f = open(paths['output'], 'w')
-f.close()
 
-for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
-    pos = result[0]
-    prob = result[1]
-    f = open(paths['output'], 'a')
-    for k in range(pos.shape[0]):
-        out = np.append(np.array([1., prob[k]]), pos[k])
-        out = np.append(out, get_sigma_8(pos[k]))
-        f.write('    '.join([str(x) for x in out]) + '\n')
+if args.save:
+    #Creat file
+    f = open(paths['output'], 'w')
     f.close()
-    if (count+1) % 10 == 0:
-        print '----> Computed ' + str(count+1) + ' over a total of ' + str(n_steps) + ' steps'
-        sys.stdout.flush()
+
+    for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
+        pos = result[0]
+        prob = result[1]
+        f = open(paths['output'], 'a')
+        for k in range(pos.shape[0]):
+            out = np.append(np.array([1., prob[k]]), pos[k])
+            out = np.append(out, get_sigma_8(pos[k]))
+            f.write('    '.join(['{0:.10e}'.format(x) for x in out]) + '\n')
+        f.close()
+        if (count+1) % 10 == 0:
+            print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
+            sys.stdout.flush()
+else:
+    for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps)):
+        try:
+            sigma8 = np.vstack((sigma8, np.array([[get_sigma_8(x) for x in result[0]]]).T))
+        except NameError:
+            sigma8 = np.array([[get_sigma_8(x) for x in result[0]]]).T
+        if (count+1) % 10 == 0:
+            print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
+            sys.stdout.flush()
+
+    pos = sampler.flatchain
+    prob = np.array([sampler.flatlnprobability]).T
+    out = np.hstack((np.ones(prob.shape), prob, pos, sigma8))
+    np.savetxt(paths['output'], out, fmt='%.10e', delimiter='    ')
+    print('Mean acceptance fraction: {0:.3f}'.format(np.mean(sampler.acceptance_fraction)))
+    sys.stdout.flush()
+
 
 
 print 'Success!!'
