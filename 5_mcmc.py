@@ -63,32 +63,6 @@ n_bins = len(pz)
 n_theta = len(theta)
 
 
-#Reshape correlation function and covariance matrix
-if args.kl:
-    n_data = len(mask_theta[mask_theta])*n_kl
-    xi_obs = xi_obs.reshape((2*n_theta,n_bins))
-    xi_obs = xi_obs[mask_theta]
-    xi_obs = xi_obs[:,:n_kl].flatten()
-    cov_mat = cov_mat.reshape((2*n_theta,n_bins,2*n_theta,n_bins))
-    cov_mat = cov_mat[:,:,mask_theta]
-    cov_mat = cov_mat[mask_theta]
-    cov_mat = cov_mat[:,:n_kl,:,:n_kl]
-    cov_mat = cov_mat.reshape((n_data,n_data))
-    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
-else:
-    n_data = len(mask_theta[mask_theta])*n_bins*(n_bins+1)/2
-    xi_obs = xi_obs.reshape((2*n_theta,n_bins,n_bins))
-    xi_obs = np.triu(xi_obs[mask_theta]).flatten()
-    xi_obs = xi_obs[xi_obs != 0]
-    cov_mat = cov_mat.reshape((2*n_theta,n_bins,n_bins,2*n_theta,n_bins,n_bins))
-    cov_mat = np.triu(cov_mat[:,:,:,mask_theta])
-    cov_mat = np.transpose(cov_mat,axes=[3,4,5,0,1,2])
-    cov_mat = np.triu(cov_mat[:,:,:,mask_theta]).flatten()
-    cov_mat = cov_mat[cov_mat != 0]
-    cov_mat = cov_mat.reshape((n_data,n_data))
-    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
-
-
 
 #Read input file
 def floatify(x):
@@ -171,6 +145,34 @@ try:
     n_threads = int(read_line(paths['input'], 'n_threads')[1])
 except ValueError:
     pass
+
+
+
+#Reshape correlation function and covariance matrix
+if args.kl:
+    n_data = len(mask_theta[mask_theta])*n_kl
+    xi_obs = xi_obs.reshape((2*n_theta,n_bins))
+    xi_obs = xi_obs[mask_theta]
+    xi_obs = xi_obs[:,:n_kl].flatten()
+    cov_mat = cov_mat.reshape((2*n_theta,n_bins,2*n_theta,n_bins))
+    cov_mat = cov_mat[:,:,mask_theta]
+    cov_mat = cov_mat[mask_theta]
+    cov_mat = cov_mat[:,:n_kl,:,:n_kl]
+    cov_mat = cov_mat.reshape((n_data,n_data))
+    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
+else:
+    n_data = len(mask_theta[mask_theta])*n_bins*(n_bins+1)/2
+    xi_obs = xi_obs.reshape((2*n_theta,n_bins,n_bins))
+    xi_obs = np.triu(xi_obs[mask_theta]).flatten()
+    xi_obs = xi_obs[xi_obs != 0]
+    cov_mat = cov_mat.reshape((2*n_theta,n_bins,n_bins,2*n_theta,n_bins,n_bins))
+    cov_mat = np.triu(cov_mat[:,:,:,mask_theta])
+    cov_mat = np.transpose(cov_mat,axes=[3,4,5,0,1,2])
+    cov_mat = np.triu(cov_mat[:,:,:,mask_theta]).flatten()
+    cov_mat = cov_mat[cov_mat != 0]
+    cov_mat = cov_mat.reshape((n_data,n_data))
+    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
+
 
 
 #Define mask for variables
