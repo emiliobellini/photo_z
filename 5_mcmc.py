@@ -12,7 +12,6 @@ parser = argparse.ArgumentParser("Calculate the correlation function, apply the 
 parser.add_argument("--input_file", "-i", type=str, default = None, help="Input parameters file")
 parser.add_argument("--data_file", "-d", type=str, default = None, help="Input data file")
 parser.add_argument("--output_file", "-o", type=str, default = None, help="Output file")
-parser.add_argument("--kl", "-kl", help="Use the KL transform istead of full data", action="store_true")
 parser.add_argument("--restart", "-r", help="Restart the chains from the last point of the output file", action="store_true")
 args = parser.parse_args()
 if not(args.input_file):
@@ -38,29 +37,11 @@ cosmo_pars = np.array([
     [None, 2.47363700, None],
     [None, 1.25771300, None]
     ])
-n_kl = 3
 n_ells = 2001
-n_walkers = 50
-n_steps = 1000
-n_threads = 1
+n_walkers = 10
+n_steps = 2
+n_threads = 2
 n_sim = 1988
-
-
-#Read data file
-with fits.open(paths['data']) as fn:
-    z = fn['photoz_z'].data
-    pz = fn['photoz_p'].data
-    theta = fn['theta'].data
-    mask_theta = fn['mask_theta'].data.astype(bool)
-    if args.kl:
-        kl_t = fn['kl_t_avg'].data
-        xi_obs = fn['xi_obs_kl'].data
-        cov_mat = fn['cov_mat_kl'].data
-    else:
-        xi_obs = fn['xi_obs'].data
-        cov_mat = fn['cov_mat'].data
-n_bins = len(pz)
-n_theta = len(theta)
 
 
 
@@ -79,7 +60,7 @@ def listify(data):
     except:
         return data
 
-def read_line(file_path, par):
+def read_line(file_path, par, exp='floats'):
     with open(file_path) as fn:
         for line in fn:
             if '=' in line and line[0] != '#':
@@ -88,96 +69,152 @@ def read_line(file_path, par):
                 name = name.strip()
                 if name == par:
                     value = value.strip()
-                    value = listify(value)
-                    if type(value) != str:
-                        if value[0]>=value[2]:
-                            raise IOError('The left bound is larger than the right bound for parameter ' + par)
-                        if (value[0]>=value[1]) or (value[1]>=value[2]):
-                            raise IOError('The central value is out of the bounds for parameter ' + par)
-                    if type(value) is str:
-                        value = np.array([None, floatify(value), None])
-                    if len(value) != 3:
-                        raise IOError('Incorrect length of input for parameter ' + par)
-                    return value
+                    if exp=='string':
+                        return value
+                    else:
+                        value = listify(value)
+                        if type(value) != str:
+                            if value[0]>=value[2]:
+                                raise IOError('The left bound is larger than the right bound for parameter ' + par)
+                            if (value[0]>=value[1]) or (value[1]>=value[2]):
+                                raise IOError('The central value is out of the bounds for parameter ' + par)
+                        else:
+                            value = np.array([None, floatify(value), None])
+                        if len(value) != 3:
+                            raise IOError('Incorrect length of input for parameter ' + par)
+                        return value
         raise ValueError()
 
 try:
-    cosmo_pars[0] = read_line(paths['input'], 'h')
+    cosmo_pars[0] = read_line(paths['input'], 'h', exp='floats')
 except ValueError:
     pass
 try:
-    cosmo_pars[1] = read_line(paths['input'], 'omega_c')
+    cosmo_pars[1] = read_line(paths['input'], 'omega_c', exp='floats')
 except ValueError:
     pass
 try:
-    cosmo_pars[2] = read_line(paths['input'], 'omega_b')
+    cosmo_pars[2] = read_line(paths['input'], 'omega_b', exp='floats')
 except ValueError:
     pass
 try:
-    cosmo_pars[3] = read_line(paths['input'], 'ln10_A_s')
+    cosmo_pars[3] = read_line(paths['input'], 'ln10_A_s', exp='floats')
 except ValueError:
     pass
 try:
-    cosmo_pars[4] = read_line(paths['input'], 'n_s')
+    cosmo_pars[4] = read_line(paths['input'], 'n_s', exp='floats')
 except ValueError:
     pass
 try:
-    n_kl = int(read_line(paths['input'], 'n_kl')[1])
+    n_ells = int(read_line(paths['input'], 'ell_max', exp='floats')[1]+1)
 except ValueError:
     pass
 try:
-    n_ells = int(read_line(paths['input'], 'ell_max')[1]+1)
+    n_walkers = int(read_line(paths['input'], 'n_walkers', exp='floats')[1])
 except ValueError:
     pass
 try:
-    n_walkers = int(read_line(paths['input'], 'n_walkers')[1])
+    n_steps = int(read_line(paths['input'], 'n_steps', exp='floats')[1])
 except ValueError:
     pass
 try:
-    n_steps = int(read_line(paths['input'], 'n_steps')[1])
+    n_sim = int(read_line(paths['input'], 'n_sim', exp='floats')[1])
 except ValueError:
     pass
 try:
-    n_sim = int(read_line(paths['input'], 'n_sim')[1])
+    n_threads = int(read_line(paths['input'], 'n_threads', exp='floats')[1])
 except ValueError:
     pass
 try:
-    n_threads = int(read_line(paths['input'], 'n_threads')[1])
+    method = read_line(paths['input'], 'method', exp='string')
+    if method=='full':
+        is_kl = False
+        is_diag = False
+    elif method=='kl_off_diag':
+        is_kl = True
+        is_diag = False
+    elif method=='kl_diag':
+        is_kl = True
+        is_diag = True
+    else:
+        raise IOError('Method not recognized. Options are: full, kl_off_diag, kl_diag')
 except ValueError:
-    pass
+    raise ValueError('Missing method in the ini file')
+if is_kl:
+    try:
+        n_kl = int(read_line(paths['input'], 'n_kl', exp='floats')[1])
+    except ValueError:
+        raise ValueError('Missing n_kl in the ini file')
 
 
 
-#Reshape correlation function and covariance matrix
-if args.kl:
-    n_data = len(mask_theta[mask_theta])*n_kl
-    xi_obs = xi_obs.reshape((2*n_theta,n_bins))
-    xi_obs = xi_obs[mask_theta]
-    xi_obs = xi_obs[:,:n_kl].flatten()
-    cov_mat = cov_mat.reshape((2*n_theta,n_bins,2*n_theta,n_bins))
-    cov_mat = cov_mat[:,:,mask_theta]
-    cov_mat = cov_mat[mask_theta]
-    cov_mat = cov_mat[:,:n_kl,:,:n_kl]
-    cov_mat = cov_mat.reshape((n_data,n_data))
-    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
-else:
-    n_data = len(mask_theta[mask_theta])*n_bins*(n_bins+1)/2
-    xi_obs = xi_obs.reshape((2*n_theta,n_bins,n_bins))
-    xi_obs = np.triu(xi_obs[mask_theta]).flatten()
-    xi_obs = xi_obs[xi_obs != 0]
-    cov_mat = cov_mat.reshape((2*n_theta,n_bins,n_bins,2*n_theta,n_bins,n_bins))
-    cov_mat = np.triu(cov_mat[:,:,:,mask_theta])
-    cov_mat = np.transpose(cov_mat,axes=[3,4,5,0,1,2])
-    cov_mat = np.triu(cov_mat[:,:,:,mask_theta]).flatten()
-    cov_mat = cov_mat[cov_mat != 0]
-    cov_mat = cov_mat.reshape((n_data,n_data))
-    inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
+#Read data file
+with fits.open(paths['data']) as fn:
+    z = fn['photoz_z'].data
+    pz = fn['photoz_p'].data
+    theta = fn['theta'].data
+    mask_theta = fn['mask_theta'].data.astype(bool)
+    xi_obs = fn['xi_obs'].data
+    cov_mat = fn['cov_mat'].data
+    if is_kl:
+        kl_t = fn['kl_t_avg'].data
+n_bins = len(pz)
+n_theta = len(theta)
+
+
+
+#KL transform and reshape data
+def kl_transform(data, datat='corr'):
+    data_kl = kl_t.dot(data).dot(kl_t.T)
+    if datat=='corr':
+        return np.transpose(data_kl, axes=[1, 2, 0, 3])
+    elif datat=='cov':
+        data_kl = np.transpose(data_kl, axes=[5, 6, 0, 7, 1, 2, 3, 4])
+        data_kl = kl_t.dot(data_kl).dot(kl_t.T)
+        return np.transpose(data_kl, axes=[1, 2, 3, 4, 5, 6, 0, 7])
+
+
+def reshape(data, datat='corr'):
+    data_r = data
+    if datat=='corr':
+        data_r = data_r.reshape((2*n_theta,n_bins,n_bins))
+        data_r = np.triu(data_r[mask_theta])
+        if is_kl:
+            data_r = data_r[:,:n_kl,:n_kl]
+        if is_diag:
+            data_r = np.diagonal(data_r,  axis1=1, axis2=2)
+    elif datat=='cov':
+        data_r = data_r.reshape((2*n_theta,n_bins,n_bins,2*n_theta,n_bins,n_bins))
+        data_r = np.triu(data_r[:,:,:,mask_theta])
+        data_r = np.transpose(data_r,axes=[3,4,5,0,1,2])
+        data_r = np.triu(data_r[:,:,:,mask_theta])
+        if is_kl:
+            data_r = data_r[:,:n_kl,:n_kl,:,:n_kl,:n_kl]
+        if is_diag:
+            data_r = np.diagonal(data_r,  axis1=4, axis2=5)
+            data_r = np.diagonal(data_r,  axis1=1, axis2=2)
+            data_r = np.transpose(data_r, axes=[0,2,1,3])
+    data_r = data_r.flatten()
+    data_r = data_r[data_r != 0]
+    if datat=='cov':
+        global n_data
+        n_data = int(np.sqrt(len(data_r)))
+        data_r = data_r.reshape((n_data,n_data))
+    return data_r
+
+if is_kl:
+    xi_obs = kl_transform(xi_obs, datat='corr')
+    cov_mat = kl_transform(cov_mat, datat='cov')
+xi_obs = reshape(xi_obs, datat='corr')
+cov_mat = reshape(cov_mat, datat='cov')
+inv_cov_mat = (n_sim-n_data-2.)/(n_sim-1.)*np.linalg.inv(cov_mat)
 
 
 
 #Define mask for variables
 mask_vars = np.array([type(x)==float for x in cosmo_pars[:,0]])
 n_dim = len(mask_vars[mask_vars])
+
 
 
 #Get random initial points
@@ -226,17 +263,9 @@ def get_theory(var):
                 xi_th[1,count1,count2,count3] = ccl.correlation(cosmo, ell, cls[:,count1,count2], theta[count3], corr_type='L-', method='FFTLog')
     xi_th = np.transpose(xi_th,axes=[0,3,1,2])
     #Reshape and eventually KL transform
-    if args.kl:
-        xi_th = kl_t.dot(xi_th).dot(kl_t.T)
-        xi_th = np.transpose(xi_th, axes=[1, 2, 0, 3])
-        xi_th = np.diagonal(xi_th,  axis1=2, axis2=3)
-        xi_th = xi_th.reshape((2*n_theta,n_bins))
-        xi_th = xi_th[mask_theta,:n_kl].flatten()
-    else:
-        xi_th = xi_th.reshape((2*n_theta,n_bins,n_bins))
-        xi_th = np.triu(xi_th[mask_theta]).flatten()
-        xi_th = xi_th[xi_th != 0]
-
+    if is_kl:
+        xi_th = kl_transform(xi_th, datat='corr')
+    xi_th = reshape(xi_th, datat='corr')
     return xi_th
 
 
@@ -247,7 +276,6 @@ def get_sigma_8(var):
     #Cosmology
     cosmo = ccl.Cosmology(h=var_tot[0], Omega_c=var_tot[1]/var_tot[0]**2., Omega_b=var_tot[2]/var_tot[0]**2., A_s=(10.**(-10.))*np.exp(var_tot[3]), n_s=var_tot[4])
     sigma8 = ccl.sigma8(cosmo)
-
     return sigma8
 
 
@@ -292,7 +320,8 @@ print 'Number of threads = ' + str(n_threads)
 print 'Number of steps = ' + str(n_steps)
 print 'Number of walkers = ' + str(n_walkers)
 print 'Maximum ell = ' + str(n_ells-1)
-if args.kl:
+print 'Method = ' + method
+if is_kl:
     print 'Number of KL modes = ' + str(n_kl)
 sys.stdout.flush()
 
