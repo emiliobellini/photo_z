@@ -296,7 +296,7 @@ def lnlike(var, obs=xi_obs, icov=inv_cov_mat):
         return -np.inf
     #Get chi2
     chi2 = (obs-xi_th).dot(icov).dot(obs-xi_th)
-    return -chi2
+    return -chi2/2.
 
 
 #Define posterior
@@ -363,7 +363,7 @@ else:
         prob = result[1]
         f = open(paths['output'], 'a')
         for k in range(pos.shape[0]):
-            out = np.append(np.array([1., prob[k]]), pos[k])
+            out = np.append(np.array([1., -prob[k]]), pos[k])
             out = np.append(out, get_sigma_8(pos[k]))
             f.write('    '.join(['{0:.10e}'.format(x) for x in out]) + '\n')
         f.close()
