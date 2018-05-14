@@ -18,15 +18,12 @@ if not(args.input_file):
     raise IOError('You should specify an input file!')
 if not(args.data_file):
     raise IOError('You should specify a data file!')
-if not(args.output_file):
-    raise IOError('You should specify an output file')
 
 
 #Define absolute paths to input and output files
 paths = {}
 paths['input'] = os.path.abspath(args.input_file)
 paths['data'] = os.path.abspath(args.data_file)
-paths['output'] = os.path.abspath(args.output_file)
 
 
 #Default parameters [h, omega_c, omega_b, ln10_A_s, n_s]
@@ -310,46 +307,69 @@ def lnprob(var):
     return lp + lnlike(var)
 
 
-#Initialize sampler
-sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, threads=n_threads)
-
-
-#Print useful stuff
-print 'Starting the chains!'
-print 'Number of threads = ' + str(n_threads)
-print 'Number of steps = ' + str(n_steps)
-print 'Number of walkers = ' + str(n_walkers)
-print 'Maximum ell = ' + str(n_ells-1)
-print 'Method = ' + method
-if is_kl:
-    print 'Number of KL modes = ' + str(n_kl)
-sys.stdout.flush()
-
-
-if args.restart:
-    #Initial point from data
-    vars_0 = np.loadtxt(paths['output'],unpack=True)
-    vars_0 = vars_0[2:2+n_dim]
-    vars_0 = vars_0[:,-n_walkers:].T
+if n_dim==0:
+    print 'The number of varying parameters is less than 2, i.e. ' + str(n_dim)
+    print 'Only the likelihood at the initial point will be evaluated'
+    
+    print 'Cosmological parameters:'
+    print '----> h             = ' + '{0:2.4e}'.format(cosmo_pars[0,1])
+    print '----> Omega_c h^2   = ' + '{0:2.4e}'.format(cosmo_pars[1,1])
+    print '----> Omega_b h^2   = ' + '{0:2.4e}'.format(cosmo_pars[2,1])
+    print '----> ln(10^10 A_s) = ' + '{0:2.4e}'.format(cosmo_pars[3,1])
+    print '----> n_s           = ' + '{0:2.4e}'.format(cosmo_pars[4,1])
+    print 'Derived parameters:'
+    print '----> sigma_8       = ' + '{0:2.4e}'.format(get_sigma_8([]))
+    print 'Likelihood:'
+    print '----> -ln(like)     = ' + '{0:4.4f}'.format(-lnprob([]))
+    
+elif n_dim==1:
+    raise IOError('To run a chain you should specify at least two varying parameters!')
 else:
-    #Initial point
-    vars_0 = np.array([get_random(cosmo_pars[mask_vars], 1.e1) for x in range(n_walkers)])
-    #Create file
-    f = open(paths['output'], 'w')
-    f.close()
+    if not(args.output_file):
+        raise IOError('You should specify an output file')
+    paths['output'] = os.path.abspath(args.output_file)
 
-for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
-    pos = result[0]
-    prob = result[1]
-    f = open(paths['output'], 'a')
-    for k in range(pos.shape[0]):
-        out = np.append(np.array([1., prob[k]]), pos[k])
-        out = np.append(out, get_sigma_8(pos[k]))
-        f.write('    '.join(['{0:.10e}'.format(x) for x in out]) + '\n')
-    f.close()
-    if (count+1) % 10 == 0:
-        print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
-        sys.stdout.flush()
+
+    #Initialize sampler
+    sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, threads=n_threads)
+
+
+    #Print useful stuff
+    print 'Starting the chains!'
+    print 'Number of threads = ' + str(n_threads)
+    print 'Number of steps = ' + str(n_steps)
+    print 'Number of walkers = ' + str(n_walkers)
+    print 'Maximum ell = ' + str(n_ells-1)
+    print 'Method = ' + method
+    if is_kl:
+        print 'Number of KL modes = ' + str(n_kl)
+    sys.stdout.flush()
+
+
+    if args.restart:
+        #Initial point from data
+        vars_0 = np.loadtxt(paths['output'],unpack=True)
+        vars_0 = vars_0[2:2+n_dim]
+        vars_0 = vars_0[:,-n_walkers:].T
+    else:
+        #Initial point
+        vars_0 = np.array([get_random(cosmo_pars[mask_vars], 1.e1) for x in range(n_walkers)])
+        #Create file
+        f = open(paths['output'], 'w')
+        f.close()
+
+    for count, result in enumerate(sampler.sample(vars_0, iterations=n_steps, storechain=False)):
+        pos = result[0]
+        prob = result[1]
+        f = open(paths['output'], 'a')
+        for k in range(pos.shape[0]):
+            out = np.append(np.array([1., prob[k]]), pos[k])
+            out = np.append(out, get_sigma_8(pos[k]))
+            f.write('    '.join(['{0:.10e}'.format(x) for x in out]) + '\n')
+        f.close()
+        if (count+1) % 10 == 0:
+            print '----> Computed ' + '{0:5.1%}'.format(float(count+1) / n_steps) + ' of the steps'
+            sys.stdout.flush()
 
 
 
