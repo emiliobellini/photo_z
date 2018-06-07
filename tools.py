@@ -1,7 +1,10 @@
 import os
 import sys
+import numpy as np
 
 from astropy.io import fits
+
+import settings
 
 
 def file_exist_or_error(fname):
@@ -31,31 +34,30 @@ def print_info_fits(fname):
     return
 
 #Given the position in the file, find the corresponding position in the array
-def position_xipm_in_array(
-    n,
-    n_theta,
-    n_bins,
-    ):
-
-    #Neglect firs/last thetas for pm
-    neg_p = vrs.NEGLECT_THETA_PLUS
-    neg_m = vrs.NEGLECT_THETA_MINUS
-
-    p_max = (n_theta-len(neg_p))*n_bins*(n_bins+1)/2 + (n_theta-len(neg_m))*n_bins*(n_bins+1)/2
+def position_xipm(n):
+    n_bins = len(settings.Z_BINS)-1
+    n_theta = len(settings.THETA_ARCMIN)
+    n_theta_xip = np.array(settings.MASK_THETA[0]).astype(int).sum()
+    n_theta_xim = np.array(settings.MASK_THETA[1]).astype(int).sum()
+    p_max = (n_theta_xip+n_theta_xim)*n_bins*(n_bins+1)/2
     if n>=p_max:
         raise ValueError("The input number is larger than expected!")
-
-    div, mod = np.divmod(n, 2*n_theta-len(neg_p)-len(neg_m))
-
-    if mod<n_theta-len(neg_p):
+    div, mod = np.divmod(n, n_theta_xip+n_theta_xim)
+    if mod<n_theta_xip:
         p_pm = 0
-        p_theta = np.delete(np.arange(n_theta), neg_p)[mod]
+        p_theta = mod
     else:
         p_pm = 1
-        p_theta = np.delete(np.arange(n_theta), neg_m)[mod-(n_theta-len(neg_p))]
-
-    intervals = np.flip(np.array([np.arange(x,n_theta+1).sum() for x in np.arange(2,n_theta+2)]),0)
+        p_theta = 3+mod-n_theta_xip
+    intervals = np.flip(np.array([np.arange(x,n_bins+1).sum() for x in np.arange(2,n_bins+2)]),0)
     p_bin_1 = np.where(intervals<=div)[0][-1]
     p_bin_2 = div - intervals[p_bin_1] + p_bin_1
-
     return p_pm, p_theta, p_bin_1, p_bin_2
+
+def read_xipm(fname):
+    xi_file = np.loadtxt(fname, dtype='float64', unpack=True)[1]
+xi_obs = np.zeros((2, n_theta, n_bins, n_bins))
+for count in range(len(xi_file)):
+    p_pm, p_theta, p_bin_1, p_bin_2 = find_pos(count, n_theta, n_bins)
+    xi_obs[p_pm,p_theta,p_bin_1,p_bin_2] = xi_file[count]
+    xi_obs[p_pm,p_theta,p_bin_2,p_bin_1] = xi_file[count]
