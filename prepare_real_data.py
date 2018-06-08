@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 #Define absolute paths and check the existence of each required file
 path = {
-    # 'data' : tools.file_exist_or_error(args.input_folder + 'data.fits'),
+    'data' : tools.file_exist_or_error(args.input_folder + 'data.fits'),
     'xipm' : tools.file_exist_or_error(args.input_folder + 'xipm.dat'),
     'sims' : tools.file_exist_or_error(args.input_folder + 'mockxipm.tar.gz'),
     'output' : tools.file_exist_or_error(os.path.abspath('') + '/data') + '/data_real.fits'
@@ -39,9 +39,17 @@ tools.write_to_fits(fname=path['output'], array=xipm, name='xipm_obs')
 xipm = tools.unpack_and_stack(fname=path['sims'])
 xipm = np.array([tools.unflatten_xipm(x) for x in xipm])
 tools.write_to_fits(fname=path['output'], array=xipm, name='xipm_sim')
-print(xipm.shape)
 
+
+#Calculate photo-z sigma_g and n_eff
+photo_z, n_eff, sigma_g = tools.read_fits_data(path['data'])
+tools.write_to_fits(fname=path['output'], array=photo_z, name='photo_z')
+tools.write_to_fits(fname=path['output'], array=n_eff, name='n_eff')
+tools.write_to_fits(fname=path['output'], array=sigma_g, name='sigma_g')
 
 
 #Print info about the fits file
 tools.print_info_fits(fname=path['output'])
+
+
+print('Success!!')

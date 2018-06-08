@@ -91,6 +91,30 @@ def unpack_and_stack(fname):
                         xipm_sims[n_sim][pos+i] = xi_val
         if (n_sim+1)%100==0 or n_sim+1==n_sims:
             print('----> Unpacked {}/{} correlation functions'.format(n_sim+1, n_sims))
-        sys.stdout.flush()
-    sys.stdout.flush()
+            sys.stdout.flush()
     return xipm_sims
+
+def read_fits_data(fname):
+    hdul = fits.open(fname, memmap=True)
+    table = hdul['data'].data
+    image = hdul['PZ_full'].data
+    z_bins = np.array([[settings.Z_BINS[n], settings.Z_BINS[n+1]] for n in np.arange(len(settings.Z_BINS)-1)])
+    sel_bins = np.array([settings.get_mask(table, z_bins[n][0], z_bins[n][1]) for n in range(len(z_bins))])
+    photo_z = np.zeros((len(z_bins)+1,len(image[0])))
+    n_eff = np.zeros(len(z_bins))
+    sigma_g = np.zeros(len(z_bins))
+    photo_z[0] = (np.arange(len(image[0]))+1./2.)*settings.CFHTlens_dZ
+    for n in range(len(z_bins)):
+        w_sum = table['weight'][sel_bins[n]].sum()
+        w2_sum = (table['weight'][sel_bins[n]]**2.).sum()
+        #TODO: Correct ellipticities
+        m = np.average(table['e1'][sel_bins[n]])
+        e1 = table['e1'][sel_bins[n]]/(1+m)
+        e2 = table['e2'][sel_bins[n]]-table['c2'][sel_bins[n]]/(1+m)
+        photo_z[n+1] = np.dot(table['weight'][sel_bins[n]], image[sel_bins[n]])/w_sum
+        n_eff[n] = w_sum**2/w2_sum/settings.CFHTlens_A_eff
+        sigma_g[n] = np.dot(table['weight'][sel_bins[n]]**2., (e1**2. + e2**2.)/2.)/w2_sum
+        sigma_g[n] = sigma_g[n]**0.5
+        print('----> Completed bin {}/{}'.format(n+1, len(z_bins)))
+        sys.stdout.flush()
+    return photo_z, n_eff, sigma_g
