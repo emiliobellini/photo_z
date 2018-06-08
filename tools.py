@@ -1,5 +1,6 @@
 import os
 import sys
+import tarfile
 import numpy as np
 
 from astropy.io import fits
@@ -54,10 +55,42 @@ def position_xipm(n):
     p_bin_2 = div - intervals[p_bin_1] + p_bin_1
     return p_pm, p_theta, p_bin_1, p_bin_2
 
-def read_xipm(fname):
-    xi_file = np.loadtxt(fname, dtype='float64', unpack=True)[1]
-xi_obs = np.zeros((2, n_theta, n_bins, n_bins))
-for count in range(len(xi_file)):
-    p_pm, p_theta, p_bin_1, p_bin_2 = find_pos(count, n_theta, n_bins)
-    xi_obs[p_pm,p_theta,p_bin_1,p_bin_2] = xi_file[count]
-    xi_obs[p_pm,p_theta,p_bin_2,p_bin_1] = xi_file[count]
+def unflatten_xipm(array):
+    n_bins = len(settings.Z_BINS)-1
+    n_theta = len(settings.THETA_ARCMIN)
+    xipm = np.zeros((2, n_theta, n_bins, n_bins))
+    for count in range(len(array)):
+        p_pm, p_theta, p_bin_1, p_bin_2 = position_xipm(count)
+        xipm[p_pm,p_theta,p_bin_1,p_bin_2] = array[count]
+        xipm[p_pm,p_theta,p_bin_2,p_bin_1] = array[count]
+    return xipm
+
+def unpack_and_stack(fname):
+    n_bins = len(settings.Z_BINS)-1
+    mask_theta = np.array(settings.MASK_THETA)
+    n_theta_masked = sum(1 for x in mask_theta.flatten() if x)
+    base_name = 'mockxipm/xipm_cfhtlens_sub2real0001_maskCLW1_blind1_z1_z1_athena.dat'
+    tar = tarfile.open(fname, 'r')
+    n_sims, mod = np.divmod(sum(1 for x in tar.getmembers() if x.isreg()), n_bins*(n_bins+1)/2)
+    if mod != 0:
+        raise IOError('The number of files in ' + fname + ' is not correct!')
+    xipm_sims = np.zeros((n_sims, n_theta_masked*n_bins*(n_bins+1)/2))
+    for n_sim in range(n_sims):
+        for n_bin1 in range(n_bins):
+            for n_bin2 in range(n_bin1, n_bins):
+                pos = np.flip(np.arange(n_bins+1),0)[:n_bin1].sum()
+                pos = (pos + n_bin2 - n_bin1)*n_theta_masked
+                new_name = base_name.replace('real0001', 'real{0:04d}'.format(n_sim+1))
+                new_name = new_name.replace('z1_athena', 'z{0:01d}_athena'.format(n_bin1+1))
+                new_name = new_name.replace('blind1_z1', 'blind1_z{0:01d}'.format(n_bin2+1))
+                f = tar.extractfile(new_name)
+                if f:
+                    xi = np.loadtxt(f)
+                    xi = np.hstack((xi[:,1][mask_theta[0]], xi[:,2][mask_theta[1]]))
+                    for i, xi_val in enumerate(xi):
+                        xipm_sims[n_sim][pos+i] = xi_val
+        if (n_sim+1)%100==0 or n_sim+1==n_sims:
+            print('----> Unpacked {}/{} correlation functions'.format(n_sim+1, n_sims))
+        sys.stdout.flush()
+    sys.stdout.flush()
+    return xipm_sims

@@ -16,8 +16,8 @@ args = parser.parse_args()
 path = {
     # 'data' : tools.file_exist_or_error(args.input_folder + 'data.fits'),
     'xipm' : tools.file_exist_or_error(args.input_folder + 'xipm.dat'),
-    'sims' : tools.file_exist_or_error(args.input_folder + 'mockxipm.tgz'),
-    'output' : tools.file_exist_or_error(os.path.abspath('') + '/output') + '/data_real.fits'
+    'sims' : tools.file_exist_or_error(args.input_folder + 'mockxipm.tar.gz'),
+    'output' : tools.file_exist_or_error(os.path.abspath('') + '/data') + '/data_real.fits'
     }
 
 
@@ -28,6 +28,20 @@ tools.write_to_fits(fname=path['output'], array=theta, name='theta')
 mask_theta = np.array(settings.MASK_THETA).astype(int)
 tools.write_to_fits(fname=path['output'], array=mask_theta, name='mask_theta')
 
-print(tools.position_xipm(6))
+
+#Read and reshape xipm observed
+xipm = np.loadtxt(path['xipm'], dtype='float64')
+xipm = tools.unflatten_xipm(xipm[:,1])
+tools.write_to_fits(fname=path['output'], array=xipm, name='xipm_obs')
+
+
+#Read and reshape xipm from simulations
+xipm = tools.unpack_and_stack(fname=path['sims'])
+xipm = np.array([tools.unflatten_xipm(x) for x in xipm])
+tools.write_to_fits(fname=path['output'], array=xipm, name='xipm_sim')
+print(xipm.shape)
+
+
+
 #Print info about the fits file
 tools.print_info_fits(fname=path['output'])
