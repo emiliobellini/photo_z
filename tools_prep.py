@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import tarfile
 import numpy as np
 
@@ -8,7 +9,7 @@ from astropy.io import fits
 import settings
 
 
-def file_exist_or_error(fname):
+def file_exists_or_error(fname):
     abspath = os.path.abspath(fname)
     if os.path.exists(abspath):
         return abspath

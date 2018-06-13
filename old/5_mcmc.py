@@ -310,7 +310,7 @@ def lnprob(var):
 if n_dim==0:
     print 'The number of varying parameters is less than 2, i.e. ' + str(n_dim)
     print 'Only the likelihood at the initial point will be evaluated'
-    
+
     print 'Cosmological parameters:'
     print '----> h             = ' + '{0:2.4e}'.format(cosmo_pars[0,1])
     print '----> Omega_c h^2   = ' + '{0:2.4e}'.format(cosmo_pars[1,1])
@@ -321,7 +321,7 @@ if n_dim==0:
     print '----> sigma_8       = ' + '{0:2.4e}'.format(get_sigma_8([]))
     print 'Likelihood:'
     print '----> -ln(like)     = ' + '{0:4.4f}'.format(-lnprob([]))
-    
+
 elif n_dim==1:
     raise IOError('To run a chain you should specify at least two varying parameters!')
 else:

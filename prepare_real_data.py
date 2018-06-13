@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 import settings
-import tools
+import tools_prep as tools
 
 
 #Parse the given arguments
@@ -14,10 +14,10 @@ args = parser.parse_args()
 
 #Define absolute paths and check the existence of each required file
 path = {
-    'data' : tools.file_exist_or_error(args.input_folder + 'data.fits'),
-    'xipm' : tools.file_exist_or_error(args.input_folder + 'xipm.dat'),
-    'sims' : tools.file_exist_or_error(args.input_folder + 'mockxipm.tar.gz'),
-    'output' : tools.file_exist_or_error(os.path.abspath('') + '/data') + '/data_real.fits'
+    'data' : tools.file_exists_or_error(args.input_folder + 'data.fits'),
+    'xipm' : tools.file_exists_or_error(args.input_folder + 'xipm.dat'),
+    'sims' : tools.file_exists_or_error(args.input_folder + 'mockxipm.tar.gz'),
+    'output' : tools.file_exists_or_error(os.path.abspath('') + '/data') + '/data_real.fits'
     }
 
 
